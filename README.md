@@ -26,6 +26,6 @@
 |刘婷|[csdn](https://blog.csdn.net/qq_43811102)|
 |吴新悦|[csdn](https://me.csdn.net/qq_44235467)|
 |胡庆伟|[csdn](https://blog.csdn.net/qq_43769572)|
-|严新豪|[csdn](https://blog.csdn.net/galaxyxupt)|
+|严欣豪|[csdn](https://blog.csdn.net/galaxyxupt)|
 |刘甜|[csdn](https://blog.csdn.net/tiandc)|
 |陈新|[csdn](https://blog.csdn.net/Cxinsect)|
