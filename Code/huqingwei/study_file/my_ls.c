@@ -13,25 +13,128 @@
 #include <pwd.h>
 #include <linux/limits.h>
 
+void print_filename(char *filename, char *filepath);
 void display_attribute(struct stat buf);
 void file_information(char *filename);
 void bianli_dir(char *dirname);
 void bianli_dir_easy(char *dirname);
- 
+void bianli_dir_l(char *dirnamr);
+void bianli_dir_easy_a(char *dirname);
+void bianli_dir_al(char *dirname);
+void bianli_dir_R(char *dirname);
+void bianli_dir_lR(char *dirname);
+void bianli_dir_aR(char *dirname);
+
 int main(int argc, char *argv[])
 {
-    if(1 == argc){
-        bianli_dir_easy(".");
+    char path[4096];
+    int num = 0;
+    int i;
+
+    for(i=0; i<argc; i++){
+        if(argv[i][0] == '-')
+            num++;
+    }
+
+    if(num == 0){
+        if(argc == 1){
+            bianli_dir_easy(".");
+        }
+        else{
+            strcpy(path, argv[1]);
+            bianli_dir_easy(path);
+        }
     }
     else{
         char *option = argv[1];
 
-        if(strcmp(option, "-l") == 0){
-            bianli_dir(".");
+        if(strcmp(option, "-r") == 0){  //-r命令
+            if(argc == 2){
+                bianli_dir(".");
+            }
+            else{
+                strcpy(path, argv[2]);
+                bianli_dir(path);
+            }
+        }
+        else if(strcmp(option, "-l") == 0){ //-l命令
+            if(argc == 2){
+                bianli_dir_l(".");
+            }
+            else{
+                strcpy(path, argv[2]);
+                bianli_dir_l(path);
+            }
+        }
+        else if(strcmp(option, "-a") == 0){
+            if(argc == 2){
+                bianli_dir_easy_a(".");
+            }
+            else{
+                strcpy(path, argv[2]);
+                bianli_dir_easy_a(path);
+            }
+        }
+        else if(strcmp(option, "-al") == 0 || strcmp(option, "-la") == 0){
+            if(argc == 2){
+                bianli_dir_al(".");
+            }
+            else{
+                strcpy(path, argv[2]);
+                bianli_dir_al(path);
+            }
+        }
+        else if(strcmp(option, "-R") == 0){
+            if(argc == 2){
+                bianli_dir_R(".");
+            }
+            else{
+                strcpy(path, argv[2]);
+                bianli_dir_R(path);
+            }
+        }
+        else if(strcmp(option, "-lR") == 0 || strcmp(option, "-Rl") == 0){
+            if(argc == 2){
+                bianli_dir_lR(".");
+            }
+            else{
+                strcpy(path, argv[2]);
+                bianli_dir_lR(path);
+            }
+        }
+        else if(strcmp(option, "-aR") == 0 || strcmp(option, "-lR") == 0){
+            if(argc == 2){
+                bianli_dir_aR(".");
+            }
+            else{
+                strcpy(path, argv[2]);
+                bianli_dir_aR(path);
+            }
         }
     }
 
     return 0;
+}
+
+//打印文件名，不同类型不同的显示
+void print_filename(char *filename, char *filepath){
+    struct stat buf;
+    stat(filepath, &buf);
+
+    if(S_ISREG(buf.st_mode)){
+        if(buf.st_mode & S_IXUSR){
+            printf("\033[1;32m%s\033[0m\n", filename);
+        }
+        else{
+            printf("%s\n", filename);
+        }
+    }
+    else if(S_ISDIR(buf.st_mode)){
+        printf("\033[1;34m%s\033[0m\n", filename);
+    }
+    else if(S_ISLNK(buf.st_mode)){
+        printf("\033[1;31m%s\033[0m\n", filename);
+    }
 }
 
 
@@ -61,7 +164,7 @@ void display_attribute(struct stat buf){
         file_type[1] = '-';
     }
     if(buf.st_mode & S_IWUSR){
-        file_type[2] = 'x';
+        file_type[2] = 'w';
     }
     else{
         file_type[2] = '-';
@@ -114,16 +217,16 @@ void display_attribute(struct stat buf){
     }
     file_type[10] = '\0';
 
-    printf("%s ", file_type);
+    printf("%s  ", file_type);
 
     //获取文件所有者的用户名组名
     psd = getpwuid(buf.st_uid);
     grp = getgrgid(buf.st_uid);
-    printf("%ld ", buf.st_nlink);
+    printf("%ld\t", buf.st_nlink);
     printf("%s\t", psd->pw_name);
     printf("%s\t", grp->gr_name);
 
-    printf("%ld\t", buf.st_size);
+    printf("%6ld\t", buf.st_size);
     strcpy(buf_time, ctime(&buf.st_mtime));
     buf_time[strlen(buf_time) - 1] = '\0';
     printf("%s ", buf_time);
@@ -146,12 +249,12 @@ void file_information(char *filename){
 
     display_attribute(file_stat);
 
-    printf("%s\n", filename);
+    //printf("%s\n", filename);
 
     close(fd);
 }
 
-//遍历目录
+//-r命令
 void bianli_dir(char *dirname){
     char filepath[4096];
     DIR *dir = opendir(dirname);
@@ -161,6 +264,7 @@ void bianli_dir(char *dirname){
         sprintf(filepath, "%s/%s", dirname, dir_struct->d_name);
         if(dir_struct->d_type == DT_REG){
             file_information(filepath);
+            print_filename(dir_struct->d_name, filepath);
         }
         else if(dir_struct->d_type == DT_DIR){
             if(strcmp(dir_struct->d_name, ".") == 0 || 
@@ -169,6 +273,8 @@ void bianli_dir(char *dirname){
                 continue;
             }
             file_information(filepath);
+            //printf("%s\n", dir_struct->d_name);
+            print_filename(dir_struct->d_name, filepath);
             bianli_dir(filepath);
         }
         dir_struct = readdir(dir);
@@ -176,29 +282,103 @@ void bianli_dir(char *dirname){
     closedir(dir);
 }
 
+//-R命令
+void bianli_dir_R(char *dirname){
+    char filepath[4096];
+    DIR *dir = opendir(dirname);
+    struct dirent *dir_struct = readdir(dir);
+
+    while(dir_struct){
+        //printf("a\n");
+        sprintf(filepath, "%s/%s", dirname, dir_struct->d_name);
+        //printf("%s\n", filepath);
+        if(dir_struct->d_type == DT_REG){
+            dir_struct = readdir(dir);
+            continue;
+        }
+        else if(dir_struct->d_type == DT_DIR){
+            if(strcmp(dir_struct->d_name, "..") == 0){
+                dir_struct = readdir(dir);
+                continue;
+            }
+            else if(strcmp(dir_struct->d_name, ".") == 0){
+                printf(".:\n");
+                bianli_dir_easy(filepath);
+            }
+            else{
+                printf("%s:\n", filepath);
+                bianli_dir_easy(filepath);
+            }
+        }
+        dir_struct = readdir(dir);
+    }
+
+    closedir(dir);
+}
+
+//-lR选项
+void bianli_dir_lR(char *dirname){
+    char filepath[4096];
+    DIR *dir = opendir(dirname);
+    struct dirent *dir_struct = readdir(dir);
+
+    while(dir_struct){
+        //printf("a\n");
+        sprintf(filepath, "%s/%s", dirname, dir_struct->d_name);
+        //printf("%s\n", filepath);
+        if(dir_struct->d_type == DT_REG){
+            dir_struct = readdir(dir);
+            continue;
+        }
+        else if(dir_struct->d_type == DT_DIR){
+            if(strcmp(dir_struct->d_name, "..") == 0){
+                dir_struct = readdir(dir);
+                continue;
+            }
+            else if(strcmp(dir_struct->d_name, ".") == 0){
+                printf(".:\n");
+                bianli_dir_l(filepath);
+            }
+            else{
+                printf("%s:\n", filepath);
+                bianli_dir_l(filepath);
+            }
+        }
+        dir_struct = readdir(dir);
+    }
+
+    closedir(dir);
+}
+
+//只有ls命令，显示当前目录的文件，不包括隐藏文件
 void bianli_dir_easy(char *dirname){
     char filepath[4096];
     struct stat buf;
     DIR *dir = opendir(dirname);
     struct dirent *dir_struct = readdir(dir);
+    int tmp = 0;
 
     while(dir_struct){
+        if(tmp > 5){
+            printf("\n");
+        }
+        sprintf(filepath, "%s/%s", dirname, dir_struct->d_name);
         if(strcmp(dir_struct->d_name, ".") == 0 || 
              strcmp(dir_struct->d_name, "..") == 0){
             dir_struct = readdir(dir);
             continue;
         }
-        stat(dir_struct->d_name, &buf);
+        stat(filepath, &buf);
         if(S_ISREG(buf.st_mode)){
             if(buf.st_mode & S_IXUSR){
-                printf("\033[;32m %s\033[0m\t", dir_struct->d_name);
+                printf("\033[1;32m %s\033[0m\t", dir_struct->d_name);
             }
             else{
                 printf("%s\t", dir_struct->d_name);
             }
         }
         else if(S_ISDIR(buf.st_mode)){
-            printf("\033[;34m %s\033[0m\t", dir_struct->d_name);
+            printf("\033[1;34m %s\033[0m\t", dir_struct->d_name);
         }
         dir_struct = readdir(dir);
     }
@@ -208,3 +388,109 @@ void bianli_dir_easy(char *dirname){
     closedir(dir);
 }
 
+//-a，显示当前目录的文件，包括隐藏文件
+void bianli_dir_easy_a(char *dirname){
+    char filepath[4096];
+    struct stat buf;
+    DIR *dir = opendir(dirname);
+    struct dirent *dir_struct = readdir(dir);
+
+    while(dir_struct){
+        sprintf(filepath, "%s/%s", dirname, dir_struct->d_name);
+        stat(filepath, &buf);
+        if(S_ISREG(buf.st_mode)){
+            if(buf.st_mode & S_IXUSR){
+                //printf("\033[1;32m%s\033[0m\t", dir_struct->d_name);
+                printf("\033[1;32m%s\033[0m\t", dir_struct->d_name);
+            }
+            else{
+                printf("%s\t", dir_struct->d_name);
+            }
+        }
+        else if(S_ISDIR(buf.st_mode)){
+            printf("\033[1;34m%s\033[m\t", dir_struct->d_name);
+        }
+        dir_struct = readdir(dir);
+    }
+    
+    printf("\n");
+
+    closedir(dir);
+}
+
+//-l命令，显示dirname的信息 
+void bianli_dir_l(char *dirname){
+    DIR *dir = opendir(dirname);
+    struct dirent *dir_struct = readdir(dir);
+    char filepath[4096];
+
+    while(dir_struct){
+        sprintf(filepath, "%s/%s", dirname, dir_struct->d_name);
+        if(strcmp(dir_struct->d_name, ".") == 0 || strcmp(dir_struct->d_name, "..") == 0){
+            dir_struct = readdir(dir);
+            continue;
+        }
+        file_information(filepath);
+        //printf("%s\n", dir_struct->d_name);
+        print_filename(dir_struct->d_name, filepath);
+        dir_struct = readdir(dir);
+    }
+
+    closedir(dir);
+}
+
+//-al命令，显示目录所有文件信息
+void bianli_dir_al(char *dirname){
+    DIR *dir = opendir(dirname);
+    struct dirent *dir_struct = readdir(dir);
+    char filepath[4096];
+
+    while(dir_struct){
+        sprintf(filepath, "%s/%s", dirname, dir_struct->d_name);   
+        file_information(filepath);
+        //printf("%s\n", dir_struct->d_name);
+        print_filename(dir_struct->d_name, filepath);
+        dir_struct = readdir(dir);
+        //if(dir_struct == NULL){
+        //    printf("line:%d\n", __LINE__-2);
+        //    perror("readdir");
+     //   }
+        //    
+    }
+
+    closedir(dir);
+}
+
+//-aR选项
+void bianli_dir_aR(char *dirname){
+    char filepath[4096];
+    DIR *dir = opendir(dirname);
+    struct dirent *dir_struct = readdir(dir);
+
+    while(dir_struct){
+        //printf("a\n");
+        sprintf(filepath, "%s/%s", dirname, dir_struct->d_name);
+        //printf("%s\n", filepath);
+        if(dir_struct->d_type == DT_REG){
+            dir_struct = readdir(dir);
+            continue;
+        }
+        else if(dir_struct->d_type == DT_DIR){
+            if(strcmp(dir_struct->d_name, "..") == 0){
+                dir_struct = readdir(dir);
+                continue;
+            }
+            else if(strcmp(dir_struct->d_name, ".") == 0){
+                printf(".:\n");
+                bianli_dir_easy_a(filepath);
+            }
+            else{
+                printf("%s:\n", filepath);
+                bianli_dir_easy_a(filepath);
+            }
+        }
+        dir_struct = readdir(dir);
+    }
+
+    closedir(dir);
+}
