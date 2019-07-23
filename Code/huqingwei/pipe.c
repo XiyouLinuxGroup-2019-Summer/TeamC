@@ -14,6 +14,8 @@ int main()
         exit(1);
     }
 
+    pid_t pid = fork();
+
     printf("pipe[0] = %d\n", fd[0]);
     printf("pipe[1] = %d\n", fd[1]);
 
