@@ -6,46 +6,60 @@
  ************************************************************************/
 
 #include<stdio.h>
+#include <string.h>
+
+
 int main()
 {
-    int t,n,i,j;
-    int x=0;
-    int a[100];
+    int t,i,j;
     scanf("%d",&t);
-    for(i=0;i<t;i++)
+    for(j=0;j<t;j++)
     {
+        int n,a[100],j,s=0,sum1=0,sum2=0,su=0;
         scanf("%d",&n);
         for(i=0;i<n;i++)
         {
             scanf("%d",&a[i]);
         }
+
         for(i=0;i<n;i++)
         {
-
             if(a[i]%3==0)
             {
-                x++;
-                a[i]=0;
+                s+=1;
+            }
+            else{
+
+                a[i]=a[i]%3;
+                if(a[i]==1)
+                {
+                    sum1+=a[i];
+                }
+                else{
+
+                    sum2+=a[i]/2;
+                }
+            }
+
+        }
+        if(sum1>sum2)
+        {
+            if((sum1-sum2)>=3)
+            {
+                su=sum1-sum2;
+                su=su/3;
+            }
+            sum1=sum2;
+        }
+        else
+        {
+            
+            if((sum2-sum1)>=3)
+            {
+                su=sum2-sum1;
+                su=su/3;
             }
         }
-        for(i=0;i<n/2;i++)
-        {
-                for(j=n/2+1;j<n;j++)
-                {
-                
-                    if((a[i]+a[j])%3==0)
-                    {
-                        x++;
-                        a[i]=0;
-                        a[j]=0;
-                    }
-                }
-        }
-        for(i=0;i<n;i++)
-        {
-            printf("%d ",a[i]);
-        }
-        printf("%d\n",x);
+        printf("%d\n",sum1+s+su);
     }
-    
 }
