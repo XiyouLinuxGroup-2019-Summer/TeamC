@@ -3,42 +3,44 @@
 #include <math.h>
 
 int wancheng(int n, int k, int v);
-int qiumi(int x, int y);
 
 int main()
 {
     int n, k;
-    int v = 1;
+    //int v = 1;
     scanf("%d %d", &n, &k);
     
-    while(!wancheng(n, k, v)){
-        v++;
+    int head = 1;
+    int tail = n;
+    
+    while(head <= tail){
+        int mid = (head + tail) / 2;
+        if(wancheng(n, k, mid)){
+            tail = mid - 1;
+        }
+        else{
+            head = mid + 1;
+        }
     }
-
-    printf("%d\n", v);
+    //printf("%d\n", wancheng(n, k, v));
+    printf("%d\n", head);
 
     return 0;
 }
 
-int qiumi(int x, int y){
-    int sum = 1;
-    while(y--){
-        sum = x*x;
-    }
-    return sum;
-}
-
 int wancheng(int n, int k, int v){
-    int worked = v;
-    int worked_once;
-    int i = 1;
-    while(worked >= n){
-        printf("qiumi = %d", qiumi(k, i));
-        worked_once = v/qiumi(k, i);
-        i++;
-        worked += worked_once;
+    int worked = 0;
+    
+    worked = v;
+
+    //printf("%d\n", v);
+    while(v){
+        worked += v/k;
+        v /= k;
     }
 
+    if(worked >= n)
+        return 1;
     return 0;
 }
 
