@@ -20,7 +20,7 @@ int main()
                 }
                 else if(a[i]>='F' && a[i]<='Z')
                 {
-                    a[i]=a[i]-1;
+                    a[i]=a[i]-5;
                 }
             }
             printf("%s\n",a);
