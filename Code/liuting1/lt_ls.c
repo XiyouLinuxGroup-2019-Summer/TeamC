@@ -1,4 +1,4 @@
-						
+qw
 #include<stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -396,7 +396,13 @@ void analy_dirl(char *dirr)
 {
     DIR *dir;
     struct dirent *ptr;
-    char filename[20][256];
+    typedef struct flnm{
+        char filename[100];
+    }*fl,FL;
+    FL *phead,*pend,*pnew;
+    phead=(fl)malloc(sizeof(FL));
+    phead->next=NULL;
+    pend=phead;
     int i=0;
     struct stat buf;
     
@@ -414,23 +420,34 @@ void analy_dirl(char *dirr)
         dir=opendir(dirr);
         while((ptr=readdir(dir))!=NULL)
         {
-            strcpy(filename[i],ptr->d_name);
-            i++;
+            pnew=(fl)malloc(sizeof(FL));
+            strcpy(pnew->filename,ptr->d_name);
+            pnew->next=NULL;
+            pend->next=pnew;
+            pend=pnew;
+            i++；
         }
+        free(pnew);
         closedir(dir);
         
     }
      else//普通文件
     {
-            strcpy(filename[0],dirr);
+            pnew=(f1)malloc(sizeof(FL));
+            strcpy(pnew->filename,dirr);
+            pnew->next=NULL;
+            pend->next=pnew;
+            pend=pnew;
+            i=2;
     }
     
+
     int j;//遍历所有文件名
     for(j=0;j<i;j++)
     {
-        if(filename[j][0]!='.')
+        if(pnew->filename[0]!='.')
         {
-            display_attribute(buf,filename[j]);
+            display_attribute(buf,);
             printf("   %-s",filename[j]);
             printf("\n");
         }
@@ -574,3 +591,4 @@ void display_single(char *name)
 
   
 }
+
