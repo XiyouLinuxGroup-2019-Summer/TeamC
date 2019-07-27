@@ -12,10 +12,16 @@
 
 int main()
 {
-    int n,i,j=0,flag1=0,flag2=0;
-    scanf("%d",&n);
+    long long n,i,j=0;
+    int flag1=0,flag2=0;
+    scanf("%lld\n",&n);
     char a[n],b[n];
-    scanf("%s",a);
+    scanf("%[^\n]",a);
+    if(a==NULL)
+    {
+        printf("\n\n");
+        return 0;
+    }
     for(i=0;i<n;i++)
     {
         if(a[i]==a[i+1])
