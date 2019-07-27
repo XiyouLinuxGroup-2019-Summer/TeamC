@@ -1,4 +1,4 @@
-qw
+
 #include<stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -12,6 +12,7 @@ qw
 #include <dirent.h>
 #include <grp.h>
 #include <pwd.h>
+
 
 #define PARAM_NONE 0
 #define PARAM_A    1
@@ -34,7 +35,7 @@ void analy_dirl(char *dirr);
 void analy_dirAL(char *dirr);
 void analy_dirR(char *dirr);
 void analy_dirRL(char *dirr);
-void display_attribute(struct stat buf,char *name);
+void display_attribute(char *name);
 void display_single(char *name);
 
 int t=0;
@@ -135,7 +136,14 @@ void analy_dir(char *dirr)
 {
     DIR *dir;
     struct dirent *ptr;
-    char filename[20][256];
+    typedef struct flnm{
+        char filename[100];
+        struct flnm *next;
+    }*fl,FL;
+    FL *phead,*pend,*pnew;
+    phead=(fl)malloc(sizeof(FL));
+    phead->next=NULL;
+    pend=phead;
     int i=0;
     struct stat buf;
     
@@ -153,27 +161,59 @@ void analy_dir(char *dirr)
         dir=opendir(dirr);
         while((ptr=readdir(dir))!=NULL)
         {
-            strcpy(filename[i],ptr->d_name);
+            pnew=(fl)malloc(sizeof(FL));
+            strcpy(pnew->filename,ptr->d_name);
+            pnew->next=NULL;
+            pend->next=pnew;
+            pend=pnew;
             i++;
         }
+        free(pnew);
         closedir(dir);
         
     }
      else//普通文件
     {
-            strcpy(filename[0],dirr);
+            pnew=(fl)malloc(sizeof(FL));
+            strcpy(pnew->filename,dirr);
+            pnew->next=NULL;
+            pend->next=pnew;
+            pend=pnew;
+            i=2;
     }
-    
-    int j;//遍历所有文件名
-    for(j=0;j<i;j++)
+   	fl f,y,x,p,t,q;
+	f=NULL;
+	while(f!=phead->next->next)
+	{
+		
+		for(p=phead;f!=p->next->next;p=p->next)
+		{
+			
+			if((strcmp(p->next->filename,p->next->next->filename))>0)
+			{
+				x=p->next;
+				y=p->next->next;
+				p->next=y;
+				x->next=y->next;
+				y->next=x;
+				
+			}
+			
+		}
+		f=p->next;
+	}
+    t=phead->next;
+    int j=0;
+    while(t)
     {
-        display_single(filename[j]);
-    
+        display_single(t->filename);
+        j++;
         if((j+1)%4==0)
         {
              printf("\n");
         }
 
+        t=t->next;
     }
     printf("\n");
     
@@ -183,7 +223,14 @@ void analy_dirno(char *dirr)
 {
     DIR *dir;
     struct dirent *ptr;
-    char filename[20][256];
+    typedef struct flnm{
+        char filename[100];
+        struct flnm *next;
+    }*fl,FL;
+    FL *phead,*pend,*pnew;
+    phead=(fl)malloc(sizeof(FL));
+    phead->next=NULL;
+    pend=phead;
     int i=0;
     struct stat buf;
     
@@ -201,26 +248,58 @@ void analy_dirno(char *dirr)
         dir=opendir(dirr);
         while((ptr=readdir(dir))!=NULL)
         {
-            strcpy(filename[i],ptr->d_name);
+            pnew=(fl)malloc(sizeof(FL));
+            strcpy(pnew->filename,ptr->d_name);
+            pnew->next=NULL;
+            pend->next=pnew;
+            pend=pnew;
             i++;
         }
+        free(pnew);
         closedir(dir);
         
     }
      else//普通文件
     {
-            strcpy(filename[0],dirr);
+            pnew=(fl)malloc(sizeof(FL));
+            strcpy(pnew->filename,dirr);
+            pnew->next=NULL;
+            pend->next=pnew;
+            pend=pnew;
+            i=2;
     }
-    
-    int j;//遍历所有文件名
-    for(j=0;j<i;j++)
+   	fl f,y,x,p,t,q;
+	f=NULL;
+	while(f!=phead->next->next)
+	{
+		
+		for(p=phead;f!=p->next->next;p=p->next)
+		{
+			
+			if((strcmp(p->next->filename,p->next->next->filename))>0)
+			{
+				x=p->next;
+				y=p->next->next;
+				p->next=y;
+				x->next=y->next;
+				y->next=x;
+				
+			}
+			
+		}
+		f=p->next;
+	}
+    t=phead->next;
+    while(t)
     {
-        if(filename[i][0]!='.')
+        if(t->filename[0]!='.')
         {
-            display_single(filename[j]);
+           display_single(t->filename);
         }
+        t=t->next; 
     }
 }
+ 
 
 
 void analy_dirR(char *dirr)
@@ -241,7 +320,7 @@ void analy_dirR(char *dirr)
                     dirr[strlen(dirr)+1]='\0';
                 }
 
-       
+      
         dir=opendir(dirr);
         while((ptr=readdir(dir))!=NULL)
         {   
@@ -292,14 +371,21 @@ void analy_dirRL(char *dirr)
 {
     DIR *dir;
     struct dirent *ptr;
-    char filename[20][256];
-    int i=0,j=0;
+    typedef struct flnm{
+        char filename[100];
+        struct flnm *next;
+    }*fl,FL;
+    FL *phead,*pend,*pnew;
+    phead=(fl)malloc(sizeof(FL));
+    phead->next=NULL;
+    pend=phead;
+    int i=0;
     struct stat buf;
+    
     stat(dirr,&buf);
     if(S_ISDIR(buf.st_mode))//目录文件
     {
-            printf("%s:\n",dirr);
-                  
+        
              if(dirr[strlen(dirr)-1]!='/')
                 {
                     dirr[strlen(dirr)]='/';
@@ -309,18 +395,60 @@ void analy_dirRL(char *dirr)
        
         dir=opendir(dirr);
         while((ptr=readdir(dir))!=NULL)
-        {   
-            if(ptr->d_name[0]!='.')
-            {
-                display_attribute(buf,ptr->d_name);
-                 printf("   %-s",ptr->d_name);
-                 printf("\n");
-            }
+        {
+            pnew=(fl)malloc(sizeof(FL));
+            strcpy(pnew->filename,ptr->d_name);
+            pnew->next=NULL;
+            pend->next=pnew;
+            pend=pnew;
+            i++;
         }
+        free(pnew);
         closedir(dir);
-        printf("\n");
-
-        int len;
+        
+    }
+     else//普通文件
+    {
+            pnew=(fl)malloc(sizeof(FL));
+            strcpy(pnew->filename,dirr);
+            pnew->next=NULL;
+            pend->next=pnew;
+            pend=pnew;
+            i=2;
+    }
+   	fl f,y,x,p,t,q;
+	f=NULL;
+	while(f!=phead->next->next)
+	{
+		
+		for(p=phead;f!=p->next->next;p=p->next)
+		{
+			
+			if((strcmp(p->next->filename,p->next->next->filename))>0)
+			{
+				x=p->next;
+				y=p->next->next;
+				p->next=y;
+				x->next=y->next;
+				y->next=x;
+				
+			}
+			
+		}
+		f=p->next;
+	}
+    t=phead->next;
+    while(t)
+    {
+           display_attribute(t->filename);
+            printf("   %-s",t->filename);
+            printf("\n");
+           t=t->next;
+    }
+}
+ 
+/*
+        mZnt len;
         len=strlen(dirr);
         dir= opendir(dirr);
         i=0;
@@ -349,55 +477,14 @@ void analy_dirRL(char *dirr)
         return ;
     }
 }
-
+*/
 void analy_dirAL(char *dirr)
-{
-    DIR *dir;
-    struct dirent *ptr;
-    char filename[20][256];
-    int i=0;
-    struct stat buf;
-    
-    stat(dirr,&buf);
-    if(S_ISDIR(buf.st_mode))//目录文件
-    {
-        
-             if(dirr[strlen(dirr)-1]!='/')
-                {
-                    dirr[strlen(dirr)]='/';
-                    dirr[strlen(dirr)+1]='\0';
-                }
-
-       
-        dir=opendir(dirr);
-        while((ptr=readdir(dir))!=NULL)
-        {
-            strcpy(filename[i],ptr->d_name);
-            i++;
-        }
-        closedir(dir);
-        
-    }
-     else//普通文件
-    {
-            strcpy(filename[0],dirr);
-    }
-    
-    int j;//遍历所有文件名
-    for(j=0;j<i;j++)
-    {
-        display_attribute(buf,filename[j]);
-        printf("   %-s",filename[j]);
-        printf("\n");
-    }
-}
-
-void analy_dirl(char *dirr)
-{
+{    
     DIR *dir;
     struct dirent *ptr;
     typedef struct flnm{
         char filename[100];
+        struct flnm *next;
     }*fl,FL;
     FL *phead,*pend,*pnew;
     phead=(fl)malloc(sizeof(FL));
@@ -425,7 +512,7 @@ void analy_dirl(char *dirr)
             pnew->next=NULL;
             pend->next=pnew;
             pend=pnew;
-            i++；
+            i++;
         }
         free(pnew);
         closedir(dir);
@@ -433,32 +520,135 @@ void analy_dirl(char *dirr)
     }
      else//普通文件
     {
-            pnew=(f1)malloc(sizeof(FL));
+            pnew=(fl)malloc(sizeof(FL));
             strcpy(pnew->filename,dirr);
             pnew->next=NULL;
             pend->next=pnew;
             pend=pnew;
             i=2;
     }
-    
-
-    int j;//遍历所有文件名
-    for(j=0;j<i;j++)
+   	fl f,y,x,p,t,q;
+	f=NULL;
+	while(f!=phead->next->next)
+	{
+		
+		for(p=phead;f!=p->next->next;p=p->next)
+		{
+			
+			if((strcmp(p->next->filename,p->next->next->filename))>0)
+			{
+				x=p->next;
+				y=p->next->next;
+				p->next=y;
+				x->next=y->next;
+				y->next=x;
+				
+			}
+			
+		}
+		f=p->next;
+	}
+    t=phead->next;
+    while(t)
     {
-        if(pnew->filename[0]!='.')
+           display_attribute(t->filename);
+            printf("   %-s",t->filename);
+            printf("\n");
+           t=t->next;
+    }
+}
+
+void analy_dirl(char *dirr)
+{
+    DIR *dir;
+    struct dirent *ptr;
+    typedef struct flnm{
+        char filename[100];
+        struct flnm *next;
+    }*fl,FL;
+    FL *phead,*pend,*pnew;
+    phead=(fl)malloc(sizeof(FL));
+    phead->next=NULL;
+    pend=phead;
+    int i=0;
+    struct stat buf;
+    
+    stat(dirr,&buf);
+    if(S_ISDIR(buf.st_mode))//目录文件
+    {
+        
+             if(dirr[strlen(dirr)-1]!='/')
+                {
+                    dirr[strlen(dirr)]='/';
+                    dirr[strlen(dirr)+1]='\0';
+                }
+
+       
+        dir=opendir(dirr);
+        while((ptr=readdir(dir))!=NULL)
         {
-            display_attribute(buf,);
-            printf("   %-s",filename[j]);
+            pnew=(fl)malloc(sizeof(FL));
+            strcpy(pnew->filename,ptr->d_name);
+            pnew->next=NULL;
+            pend->next=pnew;
+            pend=pnew;
+            i++;
+        }
+        free(pnew);
+        closedir(dir);
+        
+    }
+     else//普通文件
+    {
+            pnew=(fl)malloc(sizeof(FL));
+            strcpy(pnew->filename,dirr);
+            pnew->next=NULL;
+            pend->next=pnew;
+            pend=pnew;
+            i=2;
+    }
+   	fl f,y,x,p,t,q;
+	f=NULL;
+	while(f!=phead->next->next)
+	{
+		
+		for(p=phead;f!=p->next->next;p=p->next)
+		{
+			
+			if((strcmp(p->next->filename,p->next->next->filename))>0)
+			{
+				x=p->next;
+				y=p->next->next;
+				p->next=y;
+				x->next=y->next;
+				y->next=x;
+				
+			}
+			
+		}
+		f=p->next;
+	}
+    t=phead->next;
+    while(t)
+    {
+        if(t->filename[0]!='.')
+        {
+           display_attribute(t->filename);
+            printf("   %-s",t->filename);
             printf("\n");
         }
+        t=t->next;
     }
 }
   
-void display_attribute(struct stat buf,char *name)
+void display_attribute(char *name)
 {
     char but_time[32];
     struct passwd *psd;
     struct group  *grp;
+    struct stat buf;
+    memset(&buf,0,sizeof(struct stat));
+    stat(name,&buf);
 
     if(S_ISLNK(buf.st_mode))
     {

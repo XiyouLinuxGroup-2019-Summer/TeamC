@@ -1,3 +1,4 @@
+/*NORMAL命令中有问题*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,6 +9,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <signal.h>
 
 #define NORMAL        0    //普通命令
 #define OUT_REDIRECT  1    //输出重定向
@@ -20,12 +22,18 @@ void my_shell_input(char *buf);
 void get_mingling(char *buf, int *argc, char argv[100][256]);
 void do_cmd(int argc, char argvlist[][256]);
 int find_command(char *command);
+void stop(int signo){
+    //printf("^c\n");
+    return;
+}
 
 int main(int argc, char *argv[]){
         int i;
         char *buf;
         int argcount;
         char arglist[100][256];
+
+        signal(SIGINT, stop);
 
         buf = (char*)malloc(sizeof(char)*256);
         if(buf == NULL){
@@ -52,23 +60,31 @@ int main(int argc, char *argv[]){
             }
             argcount = 0;
 
+            /*if(strcmp(arglist[0], "^C") == 0){
+                continue;
+            }*/
+
             //获取命令列表，命令个数
             get_mingling(buf, &argcount, arglist);
-           // printf("argcount = %d\n", argcount);
-            for(i=0; i<argcount; i++){
+
+            /*for(i=0; i<argcount; i++){
                 printf("i = %d\t", i);
                 //printf("address:%p ", &arglist[i]);
                 printf("argv: %s\n", arglist[i]);
+            }*/
+            if(strcmp(arglist[0], "\0") == 0){
+                continue;
             }
-
+            
             do_cmd(argcount, arglist);
         } 
 }
 
 void my_err(char *err, int line){
-    printf("line:%d", line-1);
-    perror(err);
-    printf("\n");
+    //printf("line:%d", line-1);
+    //perror(err);
+    //printf("\n");
+    printf("may be need install\n");
     exit(1);
 }
 
@@ -132,6 +148,10 @@ void get_mingling(char *buf, int *argc, char argv[100][256]){
     //printf("len = %d", len);
     //printf("buf:%s", buf);
     
+    /*if(buf[0] = '\0'){
+        return;
+    }*/
+    
     int k;
     for(i=0; i<len; i++){
         k = 0;
@@ -169,6 +189,30 @@ void do_cmd(int argc, char argvlist[][256]){
     }
     arg[argc] = NULL;
 
+    /*判断是否为cd命令*/ 
+    if(strcmp(arg[0], "cd") == 0){
+        if(argc == 1){  //如果只有cd参数，改变当前工作目录到家目录
+            char login_name[256];
+            char user_dir[256];
+            //strcpy(login_name, getlogin()); //get login_name
+            sprintf(user_dir, "/home/%s", getlogin()); //拼接目录，得到家目录
+            //printf("user_dir: %s\n", user_dir);
+            chdir(user_dir);
+            return;
+        }
+        /*如果参数大于2，显示参数过多*/
+        else if(argc > 2){
+            printf("my_bash: cd: 参数太多\n");
+            return;
+        }
+        char chpath[256];
+        strcpy(chpath, arg[1]);
+        int ret = chdir(chpath);
+        if(ret == -1){
+            perror("cd");
+        }
+        return;
+    }
 
     //查看命令中是否有 &
     for(i=0; i<argc; i++){
@@ -257,6 +301,7 @@ void do_cmd(int argc, char argvlist[][256]){
         if(pid == 0){
             execvp(arg[0], arg);
             my_err("execvp", __LINE__);
+            //printf("wrong command\n");
         }
         break;
     case OUT_REDIRECT:
