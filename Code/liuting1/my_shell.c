@@ -185,6 +185,7 @@ void do_cmd(int argcount,char (*arglist)[256])
             file = arg[i+1];
             arg[i] = NULL;
             flag=1; 
+            break;
         }
     }
 
@@ -199,7 +200,8 @@ void do_cmd(int argcount,char (*arglist)[256])
             }
             file = arg[i+1];
             arg[i] = NULL;
-            flag=2; 
+            flag=2;
+            break;
         }
     }
 
@@ -215,7 +217,8 @@ void do_cmd(int argcount,char (*arglist)[256])
             }
             file = arg[i+1];
             arg[i] = NULL;
-            flag=4; 
+            flag=4;
+            break;
         }
     }
 
@@ -233,7 +236,8 @@ void do_cmd(int argcount,char (*arglist)[256])
                 argnext[j-i-1]=arg[j];
             }
             arg[i]=NULL;
-            flag=8; 
+            flag=8;
+            break;
         }
     }
 
@@ -329,8 +333,9 @@ void do_cmd(int argcount,char (*arglist)[256])
                     {
                         printf("%s:command not found\n",arg[0]);
                     }
-                    fd2=open("/tmp/youdonotfileknow",O_WRONLY|O_CREAT|O_TRUNC,0644);
+                    fd2=open("/tmp/noknow",O_WRONLY|O_CREAT,0644);
                     dup2(fd2,1);
+                    printf("aegv:%s\n",arg[0]);
                     execvp(arg[0],arg);
                     exit(0);
                 }
@@ -344,16 +349,15 @@ void do_cmd(int argcount,char (*arglist)[256])
                 {
                     printf("%s:command not found\n",argnext[0]);
                 }
-                fd=open("/tmp/youdonotfileknow",O_RDONLY);
-                printf("%d\n",fd);
-                dup2(fd,0);
-                printf("%s\n",argnext[0]);
+                fd2=open("/tmp/noknow",O_RDONLY);
+                dup2(fd2,0);
 
                 execvp(argnext[0],argnext);
-                //if(remove("/tmp/youdonotfileknow"))
-                //{
-                  //  printf("remove error\n");
-                //}
+                printf("##\n");
+                if(remove("/tmp/youdonotfileknow"))
+                {
+                    printf("remove error\n");
+                }
                 exit(0);
 
                 }
