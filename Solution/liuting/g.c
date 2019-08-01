@@ -12,14 +12,12 @@ int main()
 {
     int i,n,k,v,t,sum;
     scanf("%d %d",&n,&k);
-    t=k;
-    for(i=2;;i++)
+    for(i=0;;i++)
     {
-        k=k*k;
-        v=k;
-        sum=(1-t*k)/(1-t);
+        sum=(1-pow(k,i))/(1-k);
         if(sum>=n)
         {
+            v=pow(k,(i-1));
             printf("%d\n",v);
             break;
         }
