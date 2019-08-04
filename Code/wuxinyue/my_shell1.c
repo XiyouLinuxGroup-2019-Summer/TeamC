@@ -1,5 +1,4 @@
 #include<stdio.h>
-#include <assert.h>
 #include<stdlib.h>
 #include<unistd.h>
 #include<string.h>
@@ -17,8 +16,7 @@
 #define out_redirect        1   //输出重定向
 #define in_redirect         2   //输入重定向
 #define have_pipe           3   //命令中有管道
-#define out_redirect2       4   //输出重定向追加
-void print_prompt();                        //打印提示符
+void print();                        //打印提示符
 void get_input(char *buf);         //得到输入的命令
 void explain_input( char *buf,int *argcount,char arglist[][256] );      //对输入的命令进行解析
 void do_cmd( int argcount,char arglist[][256] ); //执行命令
@@ -30,13 +28,18 @@ int main( int argc,char **argv )
     char arglist[100][256];
     char **arg=NULL;
     char *buf=NULL;
+
     while(1)
     {
         //将buf所指空间清0
         buf=(char *)malloc(sizeof(char)*256);
         memset( buf,0,256 );
-        print_prompt(); 
+
+        print();
+       // get_input( buf ); 
+
         buf=readline(" ");            //使用readline()
+
         int len=strlen(buf);          //判断是否输入了命令
         if( !len )
         {
@@ -46,7 +49,7 @@ int main( int argc,char **argv )
         if( *buf )
         {
             add_history(buf);
-        }
+        } 
 
         //若输入的命令为exit或logout则退出本程序
         if( strcmp( buf,"exit" ) == 0 || strcmp( buf,"logout" ) == 0 )
@@ -67,28 +70,33 @@ int main( int argc,char **argv )
             buf = NULL;
         }
     }
+
     exit(0);
 }
-void print_prompt()                    //打印提示符
+void print()                    //打印提示符
 {
     uid_t uid;
     struct passwd *pw;
-    uid = getuid();//获得用户的uid
-    pw = getpwuid( uid );//根据用户的uid查找用户的passwd数据
+
+    uid = getuid();
+    pw = getpwuid( uid );
+
     char *buf=NULL;
     buf=(char *)malloc(sizeof(char)*100);
-    getcwd(buf,100);//将当前工作目录的绝对路径复制到参数buf所指的内存中，100为buf所指内存的大小
-    //颜色
-   // printf( "\033[;34m %s\033[0m",pw->pw_name);
-    printf("/home/yue");
-    printf( "\033[;36m%s\033[0m $ ",buf );//我当前的工作目录
+
+    getcwd(buf,100);
+    printf( "\033[;34m %s\033[0m",pw->pw_name);
+   // printf( "/home/yue" );
+    printf( "\033[;36m%s\033[0m $ ",buf );
 
 }
+
 void explain_input( char *buf, int *argcount, char arglist[100][256] )  //解析buf中的命令 遇到\n结束
 {
     char *p = buf;
     char *q = buf;
     int number = 0;
+
     while(1)
     {
         if( p[0] == '\0' )
@@ -151,7 +159,7 @@ void do_cmd( int argcount,char arglist[][256] )
 
     if( strncmp( arg[0],"cd",2)==0 )  // cd命令
     {
-        char temp[10] = "/home/yue";
+        char temp[10] = "/home/lzj";
         if( arg[1] == NULL || !strcmp(arg[1],"~" ))
         {
             if( (chdir(temp) ))
@@ -187,13 +195,6 @@ void do_cmd( int argcount,char arglist[][256] )
             if( arg[i+1] == NULL ) //如果 > 是最后一个
             flag++;
         }
-        if( strcmp( arg[i],">>" )==0 )//命令中有追加
-        {
-            flag++;
-            how=out_redirect2;
-            if( arg[i+1]==NULL )
-                flag++;
-        }
         if( strcmp( arg[i],"<" ) == 0 )  //命令中有输入重定向
         {
             flag++;
@@ -205,11 +206,8 @@ void do_cmd( int argcount,char arglist[][256] )
         }
         if( strcmp( arg[i],"|" ) == 0 )  //命令中有管道
         {
-            printf("comming\n");
             flag++;
-
             how=have_pipe;
-            printf("howsource : %d\n",how);
             if( arg[i+1] == NULL )
             {
                 flag++;
@@ -238,17 +236,6 @@ void do_cmd( int argcount,char arglist[][256] )
             }
         }
     }
-    if( how==out_redirect2 )
-    {
-        for( i=0;arg[i]!=NULL;i++ )
-        {
-            if( strcmp(arg[i],">>")==-0 )
-            {
-                file=arg[i+1];
-                arg[i]=NULL;
-            }
-        }
-    }
     if( how == in_redirect )            //命令只含有一个输入重定向符号
     {
         for( i=0; arg[i] != NULL; i++ )
@@ -269,7 +256,7 @@ void do_cmd( int argcount,char arglist[][256] )
             {
                 arg[i] = NULL;
                 int j;
-                for( j=i+1; arg[j] != NULL; j++ )
+                for( j=i+1; arg[i] != NULL; j++ )
                 {
                     argnext[j-i-1] = arg[j];
                 }
@@ -310,8 +297,8 @@ void do_cmd( int argcount,char arglist[][256] )
                     printf( "%s : Command not found!\n",arg[0] );
                     exit(0);
                 }
-                fd = open( file,O_RDWR | O_CREAT | O_TRUNC, 0644 ); //可读可写，不存在创建，可写打开时，文件清空  0644表示权限
-                dup2( fd,1 );    //指定新文件描述符为1,本应该是标准输出，但是重新定向到了fd所指向的文件中
+                fd = open( file,O_RDWR | O_CREAT | O_TRUNC, 0644 ); //可读可写，不存在创建，可写打开时，文件清空  0644的0表示十进制
+                dup2( fd,1 );    //指定新文件描述符为1
                 execvp( arg[0],arg );
                 exit(0);
             }
@@ -319,15 +306,15 @@ void do_cmd( int argcount,char arglist[][256] )
         }
         case 2:
         {
-            //输入的命令中含有输入重定向
+            //输入的命令中含有输出重定向
             if( pid == 0 )
             {
                 if( !(find_command(arg[0])) )
                 {
-                   printf( "%s : Command not find!\n",arg[0] );
-                   exit(0);
-               }
-               fd = open( file,O_RDONLY ); //只读打开
+                    printf( "%s : Command not find!\n",arg[0] );
+                    exit(0);
+                }
+                fd = open( file,O_RDONLY ); //只读打开
                 dup2( fd,0 );
                 execvp( arg[0],arg );
                 exit(0);
@@ -342,35 +329,29 @@ void do_cmd( int argcount,char arglist[][256] )
                 int pid2;
                 int status2;
                 int fd2;
-                if((pid2=fork())<0)   //在子进程中在创建一个子进程
+
+                if( ( pid2=fork() )<0 )   //在子进程中在创建一个子进程
                 {
                     printf( "process Creation failed!\n" );
                     exit(0);
                 }
-                else if( pid2 == 0 )
+                else if( pid == 0 )
                 {
-                   /* printf("%d\n",pid2);
-                    printf("@@#$%^\n");*/
                     if( !(find_command(arg[0])) )
                     {
                         printf( "%s : Command not found!\n",arg[0] );  //
                         exit(0);
                     }
-                    close(0);
-                    fd2 = open( "/tmp/transfer",O_WRONLY | O_CREAT|O_TRUNC ,0644 );//以只写方式打开 再次打开清零
-                    assert(fd2 >= 0);
+                    fd2 = open( "/tmp/transfer",O_WRONLY | O_CREAT | O_TRUNC,0644 );
                     dup2( fd2,1 );
                     execvp( arg[0],arg );
-                    //close(fd2);
                     exit(0);
                 }
-                //waitpid(pid2,&status,0);
-                if( waitpid( pid2,&status2,0 ) == -1 )
+
+                /*if( waitpid( pid2,&status2,0 ) == -1 )
                 {
-                    printf("%d\n",pid2);
-                    perror("waitpid:");
                     printf( "wait for child process error!\n" );
-                }
+                }*/
                 if( !(find_command(arg[0])) )
                 {
                     printf( "%s : Command not find!\n",arg[0] );
@@ -379,33 +360,16 @@ void do_cmd( int argcount,char arglist[][256] )
                 fd2 = open( "/tmp/transfer",O_RDONLY );
                 dup2( fd2,0 );
                 execvp( argnext[0],argnext );
-                close(fd2);
-                close(0);
 
                 if( remove( "/tmp/transfer" ) )
                     printf( "remove error\n" );
+
                 exit(0);
             }
             break;
         }
-        case 4:
-        {
-            if(pid==0)
-            {
-                 if( (!find_command( arg[0] )) )
-                {
-                    printf( "%s : Command not found!\n",arg[0] );
-                    exit(0);
-                }
-                 fd=open(file,O_RDWR | O_APPEND ,0644);
-                 dup2(fd,1);
-                 execvp(arg[0],arg);
-                 exit(0);
-            }          
-            break;     
-        }              
-                       
-        default: 
+
+        default:
             break;
     }
 
@@ -456,4 +420,5 @@ int find_command( char *command )
     }
     return 0;
 }
+
 
