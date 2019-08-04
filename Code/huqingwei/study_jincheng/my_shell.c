@@ -11,12 +11,14 @@
 #include <signal.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <readline/history.h>
 
 #define NORMAL        0    //普通命令
 #define OUT_REDIRECT  1    //输出重定向
 #define IN_REDIRECT   2    //输入重定向
 #define HAVE_PIPE     3    //含有管道命令
 #define ADD_FILE      4    //输出追加到文件尾
+#define HAVE_CD       5    //输入中含有cd
 
 void print_shell();
 void my_err(char *err, int line);
@@ -52,6 +54,7 @@ int main(int argc, char *argv[]){
             char computer[256];
             char home_dir[256];
             char cwd[256];
+            char shell_tishi[256];
 
             temp = (char*)malloc(sizeof(char)*256);
             memset(temp, 0, 256);
@@ -60,22 +63,34 @@ int main(int argc, char *argv[]){
             gethostname(computer, 256);
 
             char buf_dangqianmulu[256];
-            sprintf(home_dir, "/home/%s", login_name);
             getcwd(buf_dangqianmulu, 256);
-            int home_dir_len = strlen(home_dir);
-
-            int k=0;
-            int cwd_len = strlen(buf_dangqianmulu);
-            for(i=home_dir_len; i<cwd_len; i++){
-                cwd[k++] = buf_dangqianmulu[i];
+            if(strcmp(buf_dangqianmulu, "/") == 0){
+                strcpy(cwd, "/");
+                //char shell_tishi[256];
+                sprintf(shell_tishi, "\001\033[1;31m%s@%s\033[m:\033[1;34m%s\033[m\002$$ ", login_name, computer, cwd);
             }
-            cwd[k] = '\0';
+            else if(strcmp(buf_dangqianmulu, "/home") == 0){
+                strcpy(cwd, "/home");
+                sprintf(shell_tishi, "\001\033[1;31m%s@%s\033[m:\033[1;34m%s\033[m\002$$ ", login_name, computer, cwd);
+            }
+            else{
+                sprintf(home_dir, "/home/%s", login_name);
+                getcwd(buf_dangqianmulu, 256);
+                int home_dir_len = strlen(home_dir);
+
+                int k=0;
+                int cwd_len = strlen(buf_dangqianmulu);
+                for(i=home_dir_len; i<cwd_len; i++){
+                    cwd[k++] = buf_dangqianmulu[i];
+                }
+                cwd[k] = '\0';
             
-            char shell_tishi[256];
-            sprintf(shell_tishi, "\001\033[1;31m%s@%s\033[m:\033[1;34m~%s\033[m\002$$ ", login_name, computer, cwd);
-            //printf("shell_tishi: %s", shell_tishi);
-            
+                //char shell_tishi[256];
+                sprintf(shell_tishi, "\001\033[1;31m%s@%s\033[m:\033[1;34m~%s\033[m\002$$ ", login_name, computer, cwd);
+                //printf("shell_tishi: %s", shell_tishi);
+            }
             temp = readline(shell_tishi);
+            add_history(temp);
 
             /*while(strlen(temp) == 0 || strlen(temp) > 256){
                 memset(temp, 0, 256);
@@ -276,8 +291,20 @@ void do_cmd(int argc, char argvlist[][256]){
             return;
         }
         /*如果参数大于2，显示参数过多*/
-        else if(argc > 2){
+        /*else if(argc > 2){
             printf("my_bash: cd: 参数太多\n");
+            return;
+        }*/
+
+        if(arg[1][0] == '\0'){
+            char login_name[256];
+            char user_dir[256];
+            sprintf(user_dir, "/home/%s", getlogin());
+            chdir(user_dir);
+            return;
+        }
+        else if(argc > 2){
+            printf("my_shell: cd: 参数太多\n");
             return;
         }
         char chpath[256];
@@ -429,6 +456,11 @@ void do_cmd(int argc, char argvlist[][256]){
             if(fd == -1){
                 my_err("open", __LINE__);
             }
+            
+            ftruncate(fd, 0);
+
+            lseek(fd, 0, SEEK_SET);
+
             dup2(fd, STDIN_FILENO);
             execvp(arg[0], arg);
             perror("execvp");
@@ -494,6 +526,7 @@ void do_cmd(int argc, char argvlist[][256]){
 
     if( background == 1 ){
         printf("[process id %d]\n", pid);
+        return;
     }
 
     pid_t wpid;
