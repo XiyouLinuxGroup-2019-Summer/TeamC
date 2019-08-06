@@ -77,4 +77,4 @@ huloves@huloves:~/vacation_study/shi_yan$
 
 1. 可能会死锁
 2. 真的死锁了，运行的结果不一样，但都发生了死锁。
-原因（不确定）：pthread_mutex_t 是 typedef 来的，相当与mutex也是一个全局变量，mutex的初始值为1，然后发生了实验二的问题，当线程1的mutex1=0时，对mutex1进行上锁mutex1++后，mutex1=1，然后CPU的使用权被线程2抢夺到，线程2 执行到pthread_mutex_lock,对mutex1进行上锁++操作。然后到线程1，就死锁了。mutex2同理。
+原因：线程1对mutex1进行上锁，然后CPU的使用权被线程2抢夺到，线程2 执行到pthread_mutex_lock，因为mutex1锁上了，线程2阻塞，同理线程1也会阻塞
