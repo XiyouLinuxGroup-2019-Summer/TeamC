@@ -60,22 +60,6 @@ int main_menu()
     printf("\t\t************************* *\n");
 
     return getch();
-}
+} 
 
-typedef struct{
-        char username[MAX_CHAR];
-        char password[MAX_CHAR];
-    }info_lg;
 
-info_lg *login()
-{
-   
-
-    Info *info; 
-    printf("请输入你的账号：");
-    scanf("%s",info->username);
-    printf("请输入你的密码：");
-    scanf("%s",info->password);
-
-    return info;
-}

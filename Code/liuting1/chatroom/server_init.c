@@ -4,25 +4,23 @@
 	> Mail: 
 	> Created Time: 2019年08月07日 星期三 09时21分20秒
  ************************************************************************/
+#include "server_io.h"
 
-#include<stdio.h>
-#include <mysql/mysql.h> 
-#include <stdio.h>
 #include <pthread.h>
-#include <sys/socket.h>
 #include <fcntl.h>
 #include <sys/epoll.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <stdlib.h>
 #include <unistd.h>
-#include <string.h>
 #include <signal.h>
-#include <time.h>
 #include <math.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include "MYSQL.h"
  
 #define SERV_PORT       8888
-#define IP              "127.0.0.1" 
+#define IP              "0.0.0.0" 
 #define EPOLL_MAX       10000
 #define LISTENMAX       1000
 
@@ -33,8 +31,8 @@ void my_err(const char * err_string,int line)
 	perror(err_string);
 	exit(1);
 }
- 
-int main()
+
+int init()
 {
     int sock_fd,epoll_fd,fd_num,conn_fd;
     struct sockaddr_in serv_addr;
@@ -42,6 +40,8 @@ int main()
     struct epoll_event ev, events[LISTENMAX];
     int cli_len = sizeof(struct sockaddr_in);
 
+    MYSQL_main_init();
+    
     sock_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (sock_fd < 0)
     {
@@ -99,6 +99,7 @@ int main()
             }
             else if (events[i].events & EPOLLIN)
             {
+               recv_PACK(events[i].data.fd);
                // n = recv(events[i].data.fd, &recv_t, sizeof(PACK), 0);
                // recv_t.data.send_fd = events[i].data.fd;
             }

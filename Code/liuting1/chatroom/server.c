@@ -6,4 +6,12 @@
  ************************************************************************/
 
 #include<stdio.h>
+#include "server_init.h"
 
+int main()
+{
+    int conn_fd;
+    conn_fd = init();
+
+    
+}

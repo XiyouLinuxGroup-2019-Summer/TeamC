@@ -1,13 +1,11 @@
 /*************************************************************************
-	> File Name: client_menu.h
+	> File Name: server_init.h
 	> Author: 
 	> Mail: 
-	> Created Time: 2019年08月07日 星期三 11时43分29秒
+	> Created Time: 2019年08月08日 星期四 09时48分35秒
  ************************************************************************/
 
-#ifndef _CLIENT_MENU_H
-#define _CLIENT_MENU_H
-
-int login_menu();
-int main_menu();
+#ifndef _SERVER_INIT_H
+#define _SERVER_INIT_H
+int init();
 #endif

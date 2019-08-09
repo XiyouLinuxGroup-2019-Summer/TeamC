@@ -8,6 +8,9 @@
 #include<stdio.h>
 #include "client_menu.h"
 #include "client_init.h"
+#include "client_io.h"
+
+
 
 int main()
 {
@@ -18,10 +21,10 @@ int main()
         choice = login_menu();
         switch (choice){
             case '1':
-                login();
+                send_login_PACK(cli_fd);
                 break;
             case '2':
-                relogin();
+                //relogin();
                 break;
 
         }

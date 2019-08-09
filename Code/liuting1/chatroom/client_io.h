@@ -1,13 +1,11 @@
 /*************************************************************************
-	> File Name: client_menu.h
+	> File Name: client_io.h
 	> Author: 
 	> Mail: 
-	> Created Time: 2019年08月07日 星期三 11时43分29秒
+	> Created Time: 2019年08月08日 星期四 15时55分56秒
  ************************************************************************/
 
-#ifndef _CLIENT_MENU_H
-#define _CLIENT_MENU_H
-
-int login_menu();
-int main_menu();
+#ifndef _CLIENT_IO_H
+#define _CLIENT_IO_H
+void send_login_PACK(int conn_fd);
 #endif
