@@ -9,5 +9,7 @@
 #define _MYSQL_H
 void MYSQL_main_init();
 void MYSQL_init();
-int MYSQL_login(int, char *);
+int MYSQL_login(int, char *, int);
+int MYSQL_regist(char *, char *);
+int MYSQL_repass(int ,char *, char *);
 #endif

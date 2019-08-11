@@ -5,6 +5,5 @@
 	> Created Time: 2019年08月08日 星期四 16时18分40秒
  ************************************************************************/
 
-typedef struct package PACK;
-int deal(PACK pack);
+void recv_PACK(int);
 

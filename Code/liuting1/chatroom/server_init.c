@@ -4,7 +4,7 @@
 	> Mail: 
 	> Created Time: 2019年08月07日 星期三 09时21分20秒
  ************************************************************************/
-#include "server_io.h"
+#include "server_deal.h"
 
 #include <pthread.h>
 #include <fcntl.h>
@@ -91,7 +91,6 @@ int init()
                 {
                     perror("连接失败");
                 }
-                printf("accept连接成功\n");
                 ev.data.fd = conn_fd;
                 ev.events = EPOLLIN;
                 epoll_ctl(epoll_fd, EPOLL_CTL_ADD, conn_fd, &ev);
