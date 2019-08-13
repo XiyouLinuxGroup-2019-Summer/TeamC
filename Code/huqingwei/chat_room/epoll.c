@@ -23,17 +23,46 @@ typedef struct node{
     struct node *next;
 }Node;
 
-//创建头指针
-Node *phead = NULL;
+Node *head = NULL;  //创建头指针
 
-//尾插法
-void insert_list(Node *phead, user_date date);
+void connect_mysql(MYSQL *mysql){  //连接数据库
+    if(NULL == mysql_init(mysql)){
+        printf("mysql_init(): %s\n", mysql_error(mysql));
+        exit(1);
+    }
+    if(NULL == mysql_real_connect(mysql, "localhost", "root", "hqw479.#", "chat_room", 0, NULL, 0)){
+        printf("mysql_real_connect(): %s\n", mysql_error(mysql));
+    }
+}
 
-//处理客户端请求
-void chuli_request(int conn_fd, MSG message);
+MYSQL_RES *get_mysql_result(MYSQL *mysql, char *str){  //获得结果集
+    printf("str: %s\n", str);
+    int ret = mysql_real_query(mysql, str, strlen(str));
+    if(ret){
+        printf("line: %d\n", __LINE__-2);
+        printf("mysql_real_query() error\n");
+        mysql_close(mysql);
+        exit(1);
+    }
 
-//用户注册
-void reg(int client_fd, MSG *message);
+    MYSQL_RES *res = NULL;
+    res = mysql_store_result(mysql);
+    if(!ret){
+        printf("line: %d\n", __LINE__-2);
+        printf("mysql_store_result() error\n");
+        mysql_close(mysql);
+        exit(1);
+    }
+
+    return res;
+}
+
+void charu_list(Node *phead, user_date date);    //尾插法
+void chuli_request(int conn_fd, MSG *message);   //处理客户端请求
+void reg(int client_fd, MSG *message);           //注册
+void login(int client_fd, MSG *message);         //登录
+void all_friends(int client_fd, MSG *message);   //查看所有好友
+void online_friend(int client_fd, MSG *message); //查看在线好友
 
 int main()
 {
@@ -47,6 +76,10 @@ int main()
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);  //监听本机所有IP
     serv_addr.sin_port = htons(PORT); //设置端口
+    //设置端口复用
+    int option_value = 1;
+    int length = sizeof(option_value);
+    setsockopt(lfd, SOL_SOCKET, SO_REUSEADDR, &option_value, length);
     //绑定IP和端口
     bind(lfd, (struct sockaddr*)&serv_addr, serv_len);
 
@@ -85,7 +118,7 @@ int main()
                 epoll_ctl(epfd, EPOLL_CTL_ADD, cfd, &ev);
                 //将新连接的客户端信息加入到链表中
                 char ip[36];
-                printf("client IP: %s\t\tprot: %d\n", 
+                printf("client IP: %s\t\tprot: %d----连接成功\n", 
                         inet_ntop(AF_INET, &client_addr.sin_addr.s_addr, ip, sizeof(ip)),
                         ntohs(client_addr.sin_port));
             }
@@ -109,17 +142,19 @@ int main()
                     epoll_ctl(epfd, EPOLL_CTL_DEL, fd, NULL);
                     close(fd);
                 }
-                if(message.cmd == 1)
+                //if(message.cmd == 1)
 
                 //写数据，处理客户端的请求
-                chuli_request(fd, message);
+                chuli_request(fd, &message);
+                //printf("---cmd = %d\n", message.cmd);
+                //send(fd, &message, sizeof(MSG), 0);
             }
         }
     }
     return 0;
 }
 
-void inster_list(Node *phead, user_date date) {
+void charu_list(Node *phead, user_date date) {
     Node *current, *node;
     node = (Node*)malloc(sizeof(Node));
     
@@ -142,10 +177,22 @@ void inster_list(Node *phead, user_date date) {
     return;
 }
 
-void chuli_request(int conn_fd, MSG message) {
-    switch(message.cmd) {
-    case 1:
-        reg(conn_fd, &message);
+void chuli_request(int conn_fd, MSG *message) {
+    switch(message->type) {
+    case 'r':
+        reg(conn_fd, message);
+        send(conn_fd, message, sizeof(MSG), 0);
+        break;
+    case 'l':
+        //printf("name:%s\n", message->user_infor.name);
+        login(conn_fd, message);
+        send(conn_fd, message, sizeof(MSG), 0);
+        break;
+    case 'a':
+        all_friends(conn_fd, message);
+        break;
+    case 'o':
+        online_friend(conn_fd, message);
         break;
     }
 }
@@ -162,21 +209,215 @@ void reg(int client_fd, MSG *message) {
     }
     
     //连接数据库
-    mysql_real_connect(&mysql, "localhost", "root", "hqw479.#", "chati_room", 0, NULL, 0);
+    if(NULL == mysql_real_connect(&mysql, "localhost", "root", "hqw479.#", "chat_room", 0, NULL, 0)) {
+        printf("mysql_real_connect(): %s\n", mysql_error(&mysql));
+        printf("line: %d\n", __LINE__-2);
+        exit(1);
+    }
     char str[200];
-    sprintf(str, "insert into user values(NULL,'%s','%s','%s','%s','%s')",
-            message->user_infor.login_id, message->user_infor.name, 
-            message->user_infor.nickname, message->user_infor.sex, message->user_infor.password);
+    sprintf(str, "insert into user values(NULL, '%s','%s','%s','%s')",
+            message->user_infor.name, message->user_infor.nickname, message->user_infor.sex, message->user_infor.password);
+    //printf("%s\n", str);
     int ret = mysql_real_query(&mysql, str, strlen(str));
     if(ret == 0) {
+        printf("%s 注册成功\n", message->user_infor.name);
         message->cmd = 1001; //注册成功
     }
     else {
+        printf("%s 注册失败——>数据库中已有该用户\n", message->user_infor.name);
         message->cmd = -1; //执行失败，数据库中已有该用户
     }
+    printf("type = %c\n", message->type);
 
-    send(client_fd, &message, sizeof(message), 0);
+    //send(client_fd, &message, sizeof(message), 0);
 
     //关闭数据库
+    mysql_close(&mysql);
+}
+
+void login(int client_fd, MSG *message) {
+    user_date date;
+    MYSQL mysql;
+    if(NULL == mysql_init(&mysql)) {
+        printf("mysql_init(): %s\n", mysql_error(&mysql));
+        exit(1);
+    }
+
+    if(NULL == mysql_real_connect(&mysql, "localhost", "root", "hqw479.#", "chat_room", 0, NULL, 0)) {
+        printf("mysql_real_connect(): %s", mysql_error(&mysql));
+        printf("line: %d", __LINE__-2);
+        exit(1);
+    }
+    
+    char str[200];
+    sprintf(str, "select * from user where u_name = '%s' and u_password = '%s'",
+             message->user_infor.name, message->user_infor.password);
+
+    int ret = mysql_real_query(&mysql, str, strlen(str));
+    //printf("ret = %d\n", ret);
+    /*if(ret == 0) {
+        printf("%s 登陆成功\n", message->user_infor.name);
+        message->cmd = 1002;
+        strcpy(date.name, message->user_infor.name);
+        date.socket = client_fd;
+        //insert_list(phead, date);
+    }
+    else {
+        printf("%s 登录失败\n", message->user_infor.name);
+        message->cmd = -2;
+    }*/
+    if(ret){
+        mysql_close(&mysql);
+        return;
+    }
+
+    //获得结果集
+    MYSQL_RES *mysql_res = NULL;
+    mysql_res = mysql_store_result(&mysql);
+    if(!mysql_res){
+        mysql_close(&mysql);
+        return;
+    }
+
+    int rows, fields;
+    rows = mysql_num_rows(mysql_res); //获得行数
+    fields = mysql_num_fields(mysql_res);  //获得列数
+    if(rows == 0){
+        printf("%s 登录失败\n", message->user_infor.name);
+        message->cmd = -2;
+    }
+    else{
+        printf("%s 登陆成功\n", message->user_infor.name);
+        message->cmd = 1002;
+        strcpy(date.name, message->user_infor.name);
+        date.socket = client_fd;
+        charu_list(head, date);
+    }
+
+    //释放结果集
+    mysql_free_result(mysql_res);
+    send(client_fd, &message, sizeof(message), 0);
+    
+    mysql_close(&mysql);
+}
+
+void all_friends(int client_fd, MSG *message){
+    MYSQL mysql;
+    if(NULL == mysql_init(&mysql)){
+        printf("mysql_init(): %s\n", mysql_error(&mysql));
+        exit(1);
+    }
+    if(NULL == mysql_real_connect(&mysql, "localhost", "root", "hqw479.#", "chat_room", 0, NULL, 0)){
+        printf("mysql_real_connect: %s\n", mysql_error(&mysql));
+        exit(1);
+    }
+    char str[200];
+    sprintf(str, "select * from friend where f_username = '%s'", message->user_infor.name);
+    printf("%s", str);
+
+    int ret = mysql_real_query(&mysql, str, strlen(str));
+    if(ret){
+        printf("mysql_real_query() error\n");
+        mysql_close(&mysql);
+        return;
+    }
+
+    //获得结果集
+    MYSQL_RES *mysql_res = NULL;
+    mysql_res = mysql_store_result(&mysql);
+    if(!mysql_res){
+        printf("mysql_store_result() error\n");
+        mysql_close(&mysql);
+        return;
+    }
+
+    int rows, fields;
+    MYSQL_ROW row;
+    //MYSQL_FIELD *field;
+    
+    rows = mysql_num_rows(mysql_res);
+    fields = mysql_num_fields(mysql_res);
+    
+    message->friend_num = rows;
+    //给客户端发送好友个数
+    //send(client_fd, message, sizeof(MSG), 0);
+    //用户没有朋友，退出该函数
+    if(rows == 0){
+        message->friend_num = 0;
+        mysql_free_result(mysql_res);
+        send(client_fd, message, sizeof(MSG), 0);
+        return;
+    }
+    while(row = mysql_fetch_row(mysql_res)){
+        strcpy(message->friend_name, row[1]);
+        //printf("friend: %s\n", message->friend_name);
+        send(client_fd, message, sizeof(MSG), 0);
+    }
+    mysql_free_result(mysql_res);
+    mysql_close(&mysql);
+}
+
+void online_friend(int client_fd, MSG *message){
+    //连接数据库
+    MYSQL mysql;
+    //connect_mysql(&mysql);
+    mysql_init(&mysql);
+    mysql_real_connect(&mysql, "localhost", "root", "hqw479.#", "chat_room", 0, NULL, 0);
+    
+    char str[200];
+    sprintf(str, "select * from friend where f_username = '%s'", message->user_infor.name);
+    printf("%s\n", str);
+
+
+    //获得结果集
+    //MYSQL_RES *mysql_res;
+    //mysql_res = get_mysql_result(&mysql, str);
+
+    
+    int ret = mysql_real_query(&mysql, str, strlen(str));
+    if(ret){
+        printf("line: %d\n", __LINE__-2);
+        printf("mysql_real_query() error\n");
+        mysql_close(&mysql);
+        exit(1);
+    }
+
+    MYSQL_RES *mysql_res = NULL;
+    mysql_res = mysql_store_result(&mysql);
+    if(!ret){
+        printf("line: %d\n", __LINE__-2);
+        printf("mysql_store_result() error\n");
+        mysql_close(&mysql);
+        exit(1);
+    }
+
+    int rows;
+    MYSQL_ROW row;
+    rows = mysql_num_rows(mysql_res);
+    if(rows == 0){
+        message->friend_num = 0;
+        mysql_free_result(mysql_res);
+        mysql_close(&mysql);
+        send(client_fd, message, sizeof(MSG), 0);
+        return;
+    }
+    Node *current;
+    int flag;
+    while(row = mysql_fetch_row(mysql_res)){
+        flag = 0;
+        current = head;
+        while(current != NULL){
+            if(strcmp(message->user_infor.name, row[2])){
+                flag = 1;
+                break;
+            }
+            current = current->next;
+        }
+        if(flag == 1){
+            strcpy(message->friend_name, row[2]);
+            send(client_fd, message, sizeof(MSG), 0);
+        }
+    }
+    mysql_free_result(mysql_res);
     mysql_close(&mysql);
 }
