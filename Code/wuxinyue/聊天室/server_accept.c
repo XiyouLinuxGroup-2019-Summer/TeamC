@@ -16,14 +16,6 @@
 #define EPOLL_MAX 1000
 #define LISTENMAX 1000
 
-typedef struct msg {
-    char username[20];
-    char password[20];
-    char type;
-    char filename[20];
-    char time[10];
-}Msg;
-
 struct epoll_event ev,events[LISTENMAX];
 
 int Init_socket() {
@@ -82,31 +74,15 @@ int My_accept(int server_socket) {
 				    perror("accept\n");
 				    return -1;
 				 }
-			printf("成功接收一个客户端:%s\n", inet_ntoa(client_addr.sin_addr));
-			ev.data.fd = client_socket;
-			ev.events = EPOLLIN;
-		    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_socket, &ev);
+			    printf("成功接收一个客户端:%s\n", inet_ntoa(client_addr.sin_addr));
+			    ev.data.fd = client_socket;
+			    ev.events = EPOLLIN;
+		        epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_socket, &ev);
+                return client_socket;
 		    }
 			else if (events[i].events & EPOLLIN){
 			}
 		}
 	}
-	return client_socket;
-}
-
-int  _recv(int client_socket, Msg msg){
-    int ret = recv(client_socket, &msg, sizeof(Msg),0);
-    if (ret < 0){
-        perror("recv\n");
-        // return -1;
-    }
-}
-
-
-int main(){
-    Msg msg;
-	int server_socket = Init_socket();
-	int client_socket = My_accept(server_socket);
-    _recv(client_socket, msg);
 }
 

@@ -12,12 +12,13 @@
 
 #define IP  "127.0.0.1"
 #define PORT 9999
-#define Login 1
+#define register  1
+#define Login 2
 
 typedef struct msg {
     char username[20];
     char password[20];
-    char type;
+    int  type;
     char filename[20];
     char time[10];
 }Msg;
@@ -61,7 +62,39 @@ int My_connect (int client_socket) {
 }*/
 
 // 注册
-void reg (int client_socket){
+int  client_regis (int client_socket){
+    Msg msg;
+    char username[20];
+    char password[20];
+    msg.type = register;
+    printf("请输入用户名:");
+    scanf("%s", username);
+    strcpy(msg.username, username);
+    printf("请输入密码:");
+    scanf("%s", password);
+    strcpy(msg.password, password);
+    int ret = send(client_socket, &msg, sizeof(Msg), 0 );
+    if (ret < 0){
+        perror("send\n");
+        // return -1;
+    }
+    sleep(1);
+    memset(&msg, 0, sizeof(Msg));
+    ret = recv(client_socket, &msg, sizeof(msg), 0);
+    if (ret < 0){
+        perror("reg_recv\n");
+    }
+    else {
+        if (msg.type == 1001) {
+            printf("%s注册成功\n", msg.username);
+        }
+        if (msg.type == -1) {
+            printf("用户名已存在 请重新注册:\n");
+        }
+    }
+    return client_socket;
+}
+int  client_Login(int client_socket){
     Msg msg;
     char username[20];
     char password[20];
@@ -75,18 +108,28 @@ void reg (int client_socket){
     int ret = send(client_socket, &msg, sizeof(Msg), 0 );
     if (ret < 0){
         perror("send\n");
-        // return -1;
     }
-    /*int ret = recv(client_socket, &msg, sizeof(msg), 0);
+    sleep(1);
+    memset(&msg, 0, sizeof(Msg));
+    ret = recv(client_socket, &msg, sizeof(msg), 0);
     if (ret < 0){
-        perror("recv\n");
-        return -1;
-    }*/
+        perror("reg_recv\n");
+    }
+    else {
+        if (msg.type == 1002) {
+            printf("%s登录成功\n", msg.username);
+        }
+        if (msg.type == -2) {
+            printf("用户名不存在或密码错误 请重新登录:\n");
+            client_Login(client_socket);
+        }
+    }
+    return client_socket;
 }
 
 int main(){
-	int client_socket;
+    int client_socket;
     client_socket = My_connect(client_socket);
-    // void interface();
-    reg(client_socket);
+   // client_socket = client_regis(client_socket);
+    client_socket = client_Login(client_socket);
 }
