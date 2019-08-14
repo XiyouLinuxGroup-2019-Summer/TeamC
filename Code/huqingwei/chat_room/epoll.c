@@ -47,7 +47,7 @@ MYSQL_RES *get_mysql_result(MYSQL *mysql, char *str){  //获得结果集
 
     MYSQL_RES *res = NULL;
     res = mysql_store_result(mysql);
-    if(!ret){
+    if(!res){
         printf("line: %d\n", __LINE__-2);
         printf("mysql_store_result() error\n");
         mysql_close(mysql);
@@ -57,12 +57,51 @@ MYSQL_RES *get_mysql_result(MYSQL *mysql, char *str){  //获得结果集
     return res;
 }
 
-void charu_list(Node *phead, user_date date);    //尾插法
+//链表节点数
+void list_num(){
+    Node *current;
+    int num = 0;
+
+    current = head;
+    while(current != NULL){
+        num++;
+        current = current->next;
+    }
+
+    printf("num = %d\n", num);
+}
+
+//删除节点
+void del_node(int socket_fd){
+    Node *current, *prev;
+    current = head;
+    while(current != NULL){
+        if(current->date.socket == socket_fd){
+            break;
+        }
+        prev = current;
+        current = current->next;
+    }
+
+    if(prev == head){
+        prev = current->next;
+        free(current);
+        return;
+    }
+
+    prev->next = current->next;
+    free(current);
+}
+
+//void charu_list(Node *phead, user_date date);    //尾插法
+void charu_list(user_date date);
 void chuli_request(int conn_fd, MSG *message);   //处理客户端请求
 void reg(int client_fd, MSG *message);           //注册
 void login(int client_fd, MSG *message);         //登录
 void all_friends(int client_fd, MSG *message);   //查看所有好友
 void online_friend(int client_fd, MSG *message); //查看在线好友
+void private_chat(int client_fd, MSG *message);  //私聊功能
+void add_friend(int conn_fd, MSG *message);       //添加好友
 
 int main()
 {
@@ -110,13 +149,12 @@ int main()
             int fd = all[i].data.fd;
             //有新的连接
             if(fd == lfd) {
-                //接受连接请求 - accept不阻塞
                 int cfd = accept(lfd, (struct sockaddr*)&client_addr, &cli_len);
                 //cfd上树
                 ev.events = EPOLLIN;
                 ev.data.fd = cfd;
                 epoll_ctl(epfd, EPOLL_CTL_ADD, cfd, &ev);
-                //将新连接的客户端信息加入到链表中
+                
                 char ip[36];
                 printf("client IP: %s\t\tprot: %d----连接成功\n", 
                         inet_ntop(AF_INET, &client_addr.sin_addr.s_addr, ip, sizeof(ip)),
@@ -134,65 +172,75 @@ int main()
                 MSG message;
                 int len = recv(fd, &message, sizeof(MSG), 0);
 
+                //printf("C\n");
                 if(len == 0) {
                     //检测的fd从树上删除
                     char ip[36];
                     printf("client IP: %s\t\tport: %d 已断开连接\n", inet_ntop(AF_INET, &client_addr.sin_addr.s_addr, ip, sizeof(ip)),
                             ntohs(client_addr.sin_port));
+                    del_node(fd);
                     epoll_ctl(epfd, EPOLL_CTL_DEL, fd, NULL);
                     close(fd);
                 }
-                //if(message.cmd == 1)
 
                 //写数据，处理客户端的请求
                 chuli_request(fd, &message);
-                //printf("---cmd = %d\n", message.cmd);
-                //send(fd, &message, sizeof(MSG), 0);
             }
         }
     }
     return 0;
 }
-
-void charu_list(Node *phead, user_date date) {
-    Node *current, *node;
-    node = (Node*)malloc(sizeof(Node));
+//尾插法
+//void charu_list(Node *phead, user_date date) {
+void charu_list(user_date date){
+    Node *current, *new_node;
+    new_node = (Node*)malloc(sizeof(Node));
     
     //init要插入节点
-    node->date = date;
-    node->next = NULL;
+    //strcpy(node->date.name, date.name);
+    //node->date.socket = date.socket;
+    new_node->date = date;
+    new_node->next = NULL;
     
-    if(phead == NULL) {
-        phead = node;
+    if(head == NULL) {
+        //printf("A\n");
+        head = new_node;
         return;
     }
     
     //找到尾节点
-    current = phead;
+    current = head;
     while(current->next != NULL) {
         current = current->next;
     }
 
-    current->next = node;
+    current->next = new_node;
     return;
 }
 
 void chuli_request(int conn_fd, MSG *message) {
-    switch(message->type) {
-    case 'r':
+    switch(message->cmd) {
+    case 1:
         reg(conn_fd, message);
         send(conn_fd, message, sizeof(MSG), 0);
         break;
-    case 'l':
+    case 2:
         //printf("name:%s\n", message->user_infor.name);
         login(conn_fd, message);
+        printf("\n");
         send(conn_fd, message, sizeof(MSG), 0);
         break;
-    case 'a':
+    case 11:
         all_friends(conn_fd, message);
         break;
-    case 'o':
+    case 12:
         online_friend(conn_fd, message);
+        break;
+    case 13:
+        private_chat(conn_fd, message);
+        break;
+    case 14:
+        add_friend(conn_fd, message);
         break;
     }
 }
@@ -290,8 +338,11 @@ void login(int client_fd, MSG *message) {
         printf("%s 登陆成功\n", message->user_infor.name);
         message->cmd = 1002;
         strcpy(date.name, message->user_infor.name);
+        //printf("date.name: %s\n", date.name);
         date.socket = client_fd;
-        charu_list(head, date);
+        //printf("socket: %d\n", date.socket);
+        charu_list(date);
+        list_num();
     }
 
     //释放结果集
@@ -361,13 +412,18 @@ void online_friend(int client_fd, MSG *message){
     //连接数据库
     MYSQL mysql;
     //connect_mysql(&mysql);
-    mysql_init(&mysql);
-    mysql_real_connect(&mysql, "localhost", "root", "hqw479.#", "chat_room", 0, NULL, 0);
+    if(NULL == mysql_init(&mysql)){
+       printf("mysql_init(): %s\n", mysql_error(&mysql));
+       exit(1);
+    }
+    if(NULL == mysql_real_connect(&mysql, "localhost", "root", "hqw479.#", "chat_room", 0, NULL, 0)){
+        printf("mysql_real_connect(): %s\n", mysql_error(&mysql));
+        exit(1);
+    }
     
     char str[200];
     sprintf(str, "select * from friend where f_username = '%s'", message->user_infor.name);
     printf("%s\n", str);
-
 
     //获得结果集
     //MYSQL_RES *mysql_res;
@@ -384,7 +440,7 @@ void online_friend(int client_fd, MSG *message){
 
     MYSQL_RES *mysql_res = NULL;
     mysql_res = mysql_store_result(&mysql);
-    if(!ret){
+    if(!mysql_res){
         printf("line: %d\n", __LINE__-2);
         printf("mysql_store_result() error\n");
         mysql_close(&mysql);
@@ -420,4 +476,58 @@ void online_friend(int client_fd, MSG *message){
     }
     mysql_free_result(mysql_res);
     mysql_close(&mysql);
+}
+
+void private_chat(int conn_fd, MSG *message){
+    MYSQL mysql;
+    connect_mysql(&mysql);
+    
+    //聊天记录存入数据库
+    char str[200];
+    sprintf(str, "insert into chat_record values(NULL, '%s', '%s', '%s')", message->news, message->to_name, message->from_name);
+    //int ret = mysql_real_query(&mysql, str, strlen(str));
+
+    Node *current = head;
+    int flag = 0;
+    while(current != NULL){
+        if(strcmp(current->date.name, message->to_name) == 0){
+            flag = 1;
+            break;
+        }
+        current = current->next;
+    }
+    //未找到目标用户
+    if(flag == 0){
+        printf("未找到用户\n");
+        message->cmd = -13;
+        send(conn_fd, message, sizeof(MSG), 0);
+        return;
+    }
+
+    //找到目标用户
+    int ret = mysql_real_query(&mysql, str, strlen(str));
+    send(current->date.socket, message, sizeof(MSG), 0);
+}
+
+void add_friend(int conn_fd, MSG *message){
+    //找到要加的好友节点
+    Node *current = head;
+    int flag = 0;
+
+    while(current != NULL){
+        if(strcmp(current->date.name, message->to_name) == 0){
+            flag = 1;
+            break;
+        }
+        current = current->next;
+    }
+    //要加的好友不在线
+    if(flag == 0){
+        message->cmd = -14;
+        send(conn_fd, message, sizeof(MSG), 0);
+        return;
+    }
+    //message->cmd = 141;
+    //找到目标用户
+    send(current->date.socket, message, sizeof(MSG), 0);
 }

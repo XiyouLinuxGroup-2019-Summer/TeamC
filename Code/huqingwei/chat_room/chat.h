@@ -22,13 +22,13 @@ struct group{
 
 typedef struct msg {
     //struct sockaddr_in addr_in;       //发送源的地址
-    char msg[1024];                     //消息内容
+    //char msg[1024];                     //消息内容
     struct yonghu_infor user_infor;     //用户账户
     char to_name[20];                   //发送目的账户名
     char from_name[20];                 //来源
     char time[30];                      //时间
     struct group group;                 //群消息，群信息
-    struct yonghu_infor user;           //用户信息
+    //struct yonghu_infor user;           //用户信息
     char news[1024];
     int friend_num;                     //好友个数
     char friend_name[20];               //好友名字
