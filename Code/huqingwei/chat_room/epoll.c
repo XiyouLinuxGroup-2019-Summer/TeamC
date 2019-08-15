@@ -65,6 +65,7 @@ void list_num(){
     current = head;
     while(current != NULL){
         num++;
+        printf("name: %s\n", current->date.name);
         current = current->next;
     }
 
@@ -72,10 +73,26 @@ void list_num(){
 }
 
 //删除节点
-void del_node(int socket_fd){
-    Node *current, *prev;
+/*void del_node(int socket_fd){
+    Node *current, *temp;
     current = head;
     while(current != NULL){
+        if(current->next->date.socket == socket_fd){
+            break;
+        }
+        current = current->next;
+    }
+
+    temp = current->next;
+    current->next = temp->next;
+    free(temp);
+    return;
+}*/
+void del_node(int socket_fd){
+    Node *current, *prev;
+    prev = head;
+    current = head;
+    while(current->next != NULL){
         if(current->date.socket == socket_fd){
             break;
         }
@@ -83,14 +100,20 @@ void del_node(int socket_fd){
         current = current->next;
     }
 
+    if(current == NULL){
+        printf("false\n");
+        exit(1);
+    }
+    
     if(prev == head){
-        prev = current->next;
+        head = current->next;
         free(current);
         return;
     }
 
     prev->next = current->next;
     free(current);
+    return;
 }
 
 //void charu_list(Node *phead, user_date date);    //尾插法
@@ -102,6 +125,7 @@ void all_friends(int client_fd, MSG *message);   //查看所有好友
 void online_friend(int client_fd, MSG *message); //查看在线好友
 void private_chat(int client_fd, MSG *message);  //私聊功能
 void add_friend(int conn_fd, MSG *message);       //添加好友
+void deal_friend_request(int conn_fd, MSG *message);  //处理好友申请
 
 int main()
 {
@@ -242,6 +266,9 @@ void chuli_request(int conn_fd, MSG *message) {
     case 14:
         add_friend(conn_fd, message);
         break;
+    case 311:
+        deal_friend_request(conn_fd, message);
+        break;
     }
 }
 
@@ -347,7 +374,7 @@ void login(int client_fd, MSG *message) {
 
     //释放结果集
     mysql_free_result(mysql_res);
-    send(client_fd, &message, sizeof(message), 0);
+    //send(client_fd, &message, sizeof(message), 0);
     
     mysql_close(&mysql);
 }
@@ -395,6 +422,7 @@ void all_friends(int client_fd, MSG *message){
     //用户没有朋友，退出该函数
     if(rows == 0){
         message->friend_num = 0;
+        message->cmd = 111;
         mysql_free_result(mysql_res);
         send(client_fd, message, sizeof(MSG), 0);
         return;
@@ -452,6 +480,7 @@ void online_friend(int client_fd, MSG *message){
     rows = mysql_num_rows(mysql_res);
     if(rows == 0){
         message->friend_num = 0;
+        message->cmd = 121;
         mysql_free_result(mysql_res);
         mysql_close(&mysql);
         send(client_fd, message, sizeof(MSG), 0);
@@ -499,7 +528,7 @@ void private_chat(int conn_fd, MSG *message){
     //未找到目标用户
     if(flag == 0){
         printf("未找到用户\n");
-        message->cmd = -13;
+        message->cmd = 131;
         send(conn_fd, message, sizeof(MSG), 0);
         return;
     }
@@ -523,11 +552,30 @@ void add_friend(int conn_fd, MSG *message){
     }
     //要加的好友不在线
     if(flag == 0){
-        message->cmd = -14;
-        send(conn_fd, message, sizeof(MSG), 0);
+        //message->cmd = -14;
+        //send(conn_fd, message, sizeof(MSG), 0);
         return;
     }
     //message->cmd = 141;
     //找到目标用户
+    send(current->date.socket, message, sizeof(MSG), 0);
+}
+
+void deal_friend_request(int conn_fd, MSG *message){
+    //找到要通知的用户节点
+    int flag = 0;
+    Node *current = head;
+    while(current != NULL){
+        if(strcmp(current->date.name, message->from_name) == 0){
+            flag = 1;
+            break;
+        }
+        current = current->next;
+    }
+    //要通知的用户不在线
+    if(flag == 0){
+        return;
+    }
+
     send(current->date.socket, message, sizeof(MSG), 0);
 }
