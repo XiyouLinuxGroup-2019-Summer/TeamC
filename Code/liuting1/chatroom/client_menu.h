@@ -8,6 +8,5 @@
 #ifndef _CLIENT_MENU_H
 #define _CLIENT_MENU_H
 
-int login_menu();
-int main_menu();
+void main_login(int);
 #endif

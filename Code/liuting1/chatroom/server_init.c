@@ -5,6 +5,7 @@
 	> Created Time: 2019年08月07日 星期三 09时21分20秒
  ************************************************************************/
 #include "server_deal.h"
+#include "MYSQL.h"
 
 #include <pthread.h>
 #include <fcntl.h>
@@ -17,7 +18,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "MYSQL.h"
  
 #define SERV_PORT       8888
 #define IP              "0.0.0.0" 
