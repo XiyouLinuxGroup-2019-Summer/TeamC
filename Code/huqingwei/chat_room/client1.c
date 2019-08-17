@@ -156,8 +156,8 @@ int main(int argc, char * argv[])
         printf("----------------------\n");
         printf("☆       3.忘记密码  ☆ \n");
         printf("----------------------\n");
-        //printf("☆       3.退出      ☆ \n");
-        //printf("----------------------\n");
+        printf("☆       0.退出      ☆ \n");
+        printf("----------------------\n");
 
         while(1){
             printf("请输入你的选择：");
@@ -165,12 +165,17 @@ int main(int argc, char * argv[])
             while(getchar() != '\n')
                 continue;
             
-            if(strcmp(choice, "1")==0 || strcmp(choice, "2")==0 || strcmp(choice, "3")==0){
+            if(strcmp(choice, "1")==0 || strcmp(choice, "2")==0 || strcmp(choice, "3")==0 || strcmp(choice, "0")==0){
                 break;
             }
             else{
                 printf("输入错误，请按照提示输入\n");
             }
+        }
+
+        if(choice[0] == '0'){
+            close(fd);
+            exit(1);
         }
 
         if(choice[0] == '3'){  //退出
@@ -193,7 +198,7 @@ int main(int argc, char * argv[])
         }
         else if(choice[0] == '2'){  //选择登录
             ret = login(fd);
-            printf("ret = %d\n", ret);
+            //printf("ret = %d\n", ret);
             if(ret == 1){  //登陆成功
                 break;
             }
@@ -369,6 +374,8 @@ int reg(int conn_fd) {
     //message.type = 'r';
     message.cmd = 1;
 
+    system("clear");
+
     char buf[256];
     printf("*姓名：");
     scanf("%s", buf);
@@ -398,20 +405,25 @@ int reg(int conn_fd) {
     send(conn_fd, &message, sizeof(message), 0);
     recv(conn_fd, &message, sizeof(message), 0);
 
-    printf("cmd = %d\n", message.cmd);
+    //printf("cmd = %d\n", message.cmd);
     //注册成功返回 1001
     if(message.cmd == 1001) {
         printf("注册成功\n");
-        printf("正在返回登录界面\n");
-        sleep(1);
+        //printf("正在返回登录界面\n");
+        printf("按回车键返回菜单\n");
+        getchar();
+        //sleep(1);
         return 1;
     }
     //注册失败返回 -1
     else if(message.cmd == -1) {
         printf("该用户已被注册\n");
-        printf("正在返回登录界面\n");
+        //printf("正在返回登录界面\n");
+        printf("按回车键返回菜单\n");
+        getchar();
         return -1;
     }
+
 }
 
 int login(int conn_fd){
