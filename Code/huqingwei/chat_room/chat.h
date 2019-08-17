@@ -12,11 +12,12 @@ struct yonghu_infor {
     char nickname[20];  //昵称
     char sex[5];        //性别
     char password[20];  //密码
+    char telephone[30]; //电话号码
 };
 
 struct group{
     char group_name[20];  //群名
-    char group_leader[20];  //群主名
+    char group_owner[20];  //群主名
     int member_num;  //群成员数
 };
 
@@ -25,6 +26,7 @@ typedef struct msg {
     //char msg[1024];                     //消息内容
     struct yonghu_infor user_infor;     //用户账户
     char to_name[20];                   //发送目的账户名
+    char to_group_name[20];             //发送目的的群名
     char from_name[20];                 //来源
     char time[30];                      //时间
     struct group group;                 //群消息，群信息

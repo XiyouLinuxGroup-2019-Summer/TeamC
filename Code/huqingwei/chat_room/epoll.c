@@ -65,6 +65,34 @@ MYSQL_RES *get_mysql_result(MYSQL *mysql, char *str){  //获得结果集
 
     return res;
 }
+//尾插法
+//void charu_list(Node *phead, user_date date) {
+void charu_list(user_date date){
+    Node *current, *new_node;
+    new_node = (Node*)malloc(sizeof(Node));
+    
+    //init要插入节点
+    //strcpy(node->date.name, date.name);
+    //node->date.socket = date.socket;
+    new_node->date = date;
+    new_node->next = NULL;
+    
+    if(head == NULL) {
+        //printf("A\n");
+        head = new_node;
+        return;
+    }
+    
+    //找到尾节点
+    current = head;
+    while(current->next != NULL) {
+        current = current->next;
+    }
+
+    current->next = new_node;
+    return;
+}
+
 
 //链表节点数
 void list_num(){
@@ -84,6 +112,11 @@ void list_num(){
 //删除节点
 void del_node(int socket_fd){
     Node *current, *prev;
+    
+    if(head == NULL){  //如果没有用户在线，跳过该函数
+        return;
+    }
+
     prev = head;
     current = head;
     while(current->next != NULL){
@@ -111,17 +144,21 @@ void del_node(int socket_fd){
 }
 
 //void charu_list(Node *phead, user_date date);    //尾插法
-void charu_list(user_date date);
+//void charu_list(user_date date);
 void chuli_request(int conn_fd, MSG *message);   //处理客户端请求
 void reg(int client_fd, MSG *message);           //注册
 void login(int client_fd, MSG *message);         //登录
+void forget_password(int conn_fd, MSG *message); //忘记密码
 void all_friends(int client_fd, MSG *message);   //查看所有好友
 void online_friend(int client_fd, MSG *message); //查看在线好友
 void private_chat(int client_fd, MSG *message);  //私聊功能
 void add_friend(int conn_fd, MSG *message);       //添加好友
-void deal_friend_request(int conn_fd, MSG *message);  //处理好友申请
+void deal_friend_request_y(int conn_fd, MSG *message);  //同意好友申请
 void create_group(int conn_fd, MSG *message);    //创建群聊
 void view_group(int conn_fd, MSG *message);      //查看群
+void public_chat(int conn_fd, MSG *message);     //群聊功能
+void add_group(int conn_fd, MSG *message);       //申请加群
+void deal_group_request_y(int conn_fd, MSG *message);  //同意入群申请
 
 int main()
 {
@@ -212,7 +249,7 @@ int main()
 }
 //尾插法
 //void charu_list(Node *phead, user_date date) {
-void charu_list(user_date date){
+/*void charu_list(user_date date){
     Node *current, *new_node;
     new_node = (Node*)malloc(sizeof(Node));
     
@@ -236,10 +273,13 @@ void charu_list(user_date date){
 
     current->next = new_node;
     return;
-}
+}*/
 
 void chuli_request(int conn_fd, MSG *message) {
     switch(message->cmd) {
+    case 0:
+        forget_password(conn_fd, message);
+        break;
     case 1:
         reg(conn_fd, message);
         send(conn_fd, message, sizeof(MSG), 0);
@@ -265,8 +305,18 @@ void chuli_request(int conn_fd, MSG *message) {
     case 21:
         view_group(conn_fd, message);
         break;
+    case 22:
+        public_chat(conn_fd, message);
+        break;
+    case 23:
+        printf("A\n");
+        add_group(conn_fd, message);
+        break;
     case 311:
-        deal_friend_request(conn_fd, message);
+        deal_friend_request_y(conn_fd, message);
+        break;
+    case 321:
+        deal_group_request_y(conn_fd, message);
         break;
     case 5:
         create_group(conn_fd, message);
@@ -394,6 +444,78 @@ void login(int client_fd, MSG *message) {
     //send(client_fd, &message, sizeof(message), 0);
     
     mysql_close(&mysql);
+}
+
+void forget_password(int conn_fd, MSG *message){
+    //连接数据库
+    MYSQL mysql;
+    if(NULL == mysql_init(&mysql)){
+        printf("line: %d ", __LINE__-1);
+        printf("mysql_init: %s", mysql_error(&mysql));
+        exit(1);
+    }
+    if(NULL == mysql_real_connect(&mysql, "localhost", "root", "hqw479.#", "chat_room", 0, NULL, 0)){
+        printf("line: %d ", __LINE__-1);
+        printf("mysql_real_connect(): %s", mysql_error(&mysql));
+        exit(1);
+    }
+    //查找是否存在该账户
+    char str[200];
+    memset(str, 0, sizeof(str));
+    sprintf(str, "select * from user where u_name = '%s'",
+                message->user_infor.name);
+    //printf("str:%s\n", str);
+    int ret = mysql_real_query(&mysql, str, strlen(str));
+    if(ret){
+        printf("line: %d", __LINE__-2);
+        printf("mysql_real_query() error\n");
+        mysql_close(&mysql);
+        exit(1);
+    }
+
+    MYSQL_RES *mysql_res = NULL;
+    mysql_res = mysql_store_result(&mysql);
+    int rows = mysql_num_rows(mysql_res);
+    if(rows == 0){
+        message->cmd = 01;
+        send(conn_fd, message, sizeof(MSG), 0);
+        mysql_free_result(mysql_res);
+        mysql_close(&mysql);
+        return;
+    }
+
+    sprintf(str, "select * from user where u_name = '%s' and u_telephone = '%s'",
+                message->user_infor.name, message->user_infor.telephone);
+    ret = mysql_real_query(&mysql, str, strlen(str));
+    if(ret){
+        printf("line: %d", __LINE__-2);
+        printf("mysql_real_query(): error\n");
+        exit(1);
+    }
+
+    mysql_res = mysql_store_result(&mysql);
+    if(!mysql_res){
+        printf("line: %d", __LINE__-2);
+        printf("mysql_store_result(): error\n");
+        exit(1);
+    }
+    rows = mysql_num_rows(mysql_res);
+    if(rows == 0){
+        message->cmd = 02;
+        send(conn_fd, message, sizeof(MSG), 0);
+        mysql_free_result(mysql_res);
+        mysql_close(&mysql);
+        return;
+    }
+    
+    message->cmd = 03;
+    MYSQL_ROW row;
+    row = mysql_fetch_row(mysql_res);
+    strcpy(message->user_infor.password, row[4]);
+    send(conn_fd, message, sizeof(MSG), 0);
+    mysql_free_result(mysql_res);
+    mysql_close(&mysql);
+    return;;
 }
 
 void all_friends(int client_fd, MSG *message){
@@ -563,11 +685,40 @@ void private_chat(int conn_fd, MSG *message){
 }
 
 void add_friend(int conn_fd, MSG *message){
+    //连接数据库
     MYSQL mysql;
     connect_mysql(&mysql);
     char str[200];
-    sprintf(str, "insert into friend values(NULL,'%s','%s','1','0')",
+    //查看是否添加过好友
+    sprintf(str, "select * from friend where f_friendname = '%s' and f_username = '%s'",
                 message->to_name, message->from_name);
+    int ret = mysql_real_query(&mysql, str, strlen(str));
+    if(ret){
+        printf("line: %d ", __LINE__-2);
+        printf("mysql_real_query(): error\n");
+        mysql_close(&mysql);
+        exit(1);
+    }
+    MYSQL_RES *mysql_res = NULL;
+    mysql_res = mysql_store_result(&mysql);
+    if(!mysql_res){
+        printf("line: %d ", __LINE__-2);
+        printf("mysql_store_result(): error\n");
+        mysql_close(&mysql);
+        exit(1);
+    }
+    int rows = mysql_num_rows(mysql_res);
+    if(rows){
+        message->cmd = 140;
+        send(conn_fd, message, sizeof(MSG), 0);
+        mysql_free_result(mysql_res);
+        mysql_close(&mysql);
+        return;
+    }
+
+    //如果未添加过的好友，则开始添加好友
+    sprintf(str, "insert into friend values(NULL,'%s','%s','1','0')",
+                message->to_name, message->from_name); 
     mysql_real_query(&mysql, str, strlen(str));
     //找到要加的好友节点
     Node *current = head;
@@ -652,7 +803,128 @@ void view_group(int conn_fd, MSG *message){
     mysql_close(&mysql);
 }
 
-void deal_friend_request(int conn_fd, MSG *message){
+void public_chat(int conn_fd, MSG *message){
+    MYSQL mysql;
+    connect_mysql(&mysql);
+
+    //通过群名找到目标用户
+    char str[4096];
+    sprintf(str, "select * from group_relationship where group_name = '%s'", message->to_group_name);
+    int ret = mysql_real_query(&mysql, str, strlen(str));
+    if(ret){
+        printf("line: %d\n", __LINE__-2);
+        printf("mysql_real_query() error\n");
+        exit(1);
+    }
+
+    //获得结果集
+    MYSQL_RES *mysql_res = NULL;
+    mysql_res = mysql_store_result(&mysql);
+    if(!mysql_res){
+        printf("line: %d\n", __LINE__-2);
+        printf("mysql_store_result() error\n");
+        exit(1);
+    }
+
+    //int rows;
+    MYSQL_ROW row;
+    //rows = mysql_num_rows(mysql_res);
+    while(row = mysql_fetch_row(mysql_res)){
+        //查看目标用户是否在线
+        Node *current = head;
+        int flag = 0;
+        while(current != NULL){
+            if(strcmp(current->date.name, row[1]) == 0){
+                flag = 1;
+                break;
+            }
+            current = current->next;
+        }        
+        //将目标用户储存在message中
+        strcpy(message->to_name, row[1]);
+        //未找到目标用户，目标用户不在线，储存在群消息记录中
+        if(flag == 0){
+            sprintf(str, "insert into group_record values(NULL,'%s','%s','%s','%s','0','%s')",
+                        message->news, message->to_name, message->from_name, message->to_group_name, message->time);
+            mysql_real_query(&mysql, str, strlen(str));
+            continue;
+        }
+        //找到目标用户，目标用户在线
+        sprintf(str, "insert into group_record values(NULL,'%s','%s','%s','%s','1','%s')",
+                    message->news, message->to_name, message->from_name, message->to_group_name, message->time);
+        mysql_real_query(&mysql, str, strlen(str));
+        send(current->date.socket, message, sizeof(MSG), 0);
+    }
+}
+
+void add_group(int conn_fd, MSG *message){
+    //根据群名在数据库中找到群主
+    char owner_name[200];  //储存群主名
+    char str[4096];
+    //连接数据库
+    MYSQL mysql;
+    connect_mysql(&mysql);
+
+    //根据群名，查询群主
+    sprintf(str, "select * from user_groups where name = '%s'", message->to_name);
+    int ret = mysql_real_query(&mysql, str, strlen(str));
+    if(ret){
+        printf("line: %d", __LINE__-2);
+        printf("mysql_real_query() error\n");
+        exit(1);
+    }
+    MYSQL_RES *mysql_res = NULL;
+    mysql_res = mysql_store_result(&mysql);
+    if(!mysql_res){
+        printf("line: %d", __LINE__-2);
+        printf("mysql_store_result() error\n");
+        exit(1);
+    }
+
+    MYSQL_ROW row;
+    row = mysql_fetch_row(mysql_res);
+    strcpy(owner_name, row[1]);
+    strcpy(message->to_name, owner_name);
+    printf("owner_name: %s\n", message->to_name); //---------------------------
+    //查看群主是否在线，在线发送请求，不在线发送离线请求
+    int flag = 0;
+    Node *current = head;
+    while(current != NULL){
+        if(strcmp(current->date.name, message->to_name) == 0){
+            flag = 1;
+            break;
+        }
+        current = current->next;
+    }
+    
+    if(flag == 0){
+        //message->cmd = -14;
+        //send(conn_fd, message, sizeof(MSG), 0);
+        request_node *current, *new_node;
+        new_node = (request_node*)malloc(sizeof(request_node));
+        //init
+        strcpy(new_node->from_name, message->from_name);
+        strcpy(new_node->to_name, message->to_name);
+        new_node->type = 'g';
+        new_node->next = NULL;
+
+        if(head_request == NULL){
+            head_request = new_node;
+            return;
+        }
+
+        current = head_request;
+        while(current->next != NULL){
+            current = current->next;
+        }
+        current->next = new_node;
+        return;
+    }
+
+    send(current->date.socket, message, sizeof(MSG), 0);
+}
+
+void deal_friend_request_y(int conn_fd, MSG *message){
     //连接数据库
     MYSQL mysql;
     connect_mysql(&mysql);
@@ -689,6 +961,60 @@ void deal_friend_request(int conn_fd, MSG *message){
 
     send(current->date.socket, message, sizeof(MSG), 0);
     //关闭数据库
+    mysql_close(&mysql);
+}
+
+void deal_group_request_y(int conn_fd, MSG *message){
+    //连接数据库
+    MYSQL mysql;
+    connect_mysql(&mysql);
+
+    //根据群主名找到群名
+    char str[200];
+    sprintf(str, "select * from user_groups where owner = '%s'", message->to_name);
+    int ret = mysql_real_query(&mysql, str, strlen(str));
+    if(ret){
+        printf("line: %d", __LINE__-2);
+        printf("mysql_real_query() error\n");
+        exit(1);
+    }
+    //获得结果集
+    MYSQL_RES *mysql_res = NULL;
+    mysql_res = mysql_store_result(&mysql);
+    if(!mysql_res){
+        printf("line: %d", __LINE__-2);
+        printf("mysql_store_result() error\n");
+        exit(1);
+    }
+    MYSQL_ROW row;
+    row = mysql_fetch_row(mysql_res);
+    char group_name[20];
+    strcpy(group_name, row[0]);
+    //printf("group_name: %s\n", group_name);
+    //插入群关系表
+    sprintf(str, "insert into group_relationship values('%s','%s','3')",
+                group_name, message->from_name);
+    //printf("str: %s\n", str);
+    mysql_real_query(&mysql, str, strlen(str));
+
+    //找到通知的节点
+    int flag = 0;
+    Node *current = head;
+    while(current != NULL){
+        if(strcmp(current->date.name, message->from_name) == 0){
+            flag = 1;
+            break;
+        }
+        current = current->next;
+    }
+    if(flag == 0){
+        return;
+    }
+
+    strcpy(message->to_name, group_name);
+
+    send(current->date.socket, message, sizeof(MSG), 0);
+    mysql_free_result(mysql_res);
     mysql_close(&mysql);
 }
 
