@@ -342,8 +342,8 @@ void reg(int client_fd, MSG *message) {
         exit(1);
     }
     char str[200];
-    sprintf(str, "insert into user values(NULL, '%s','%s','%s','%s')",
-            message->user_infor.name, message->user_infor.nickname, message->user_infor.sex, message->user_infor.password);
+    sprintf(str, "insert into user values(NULL, '%s','%s','%s','%s','%s')",
+            message->user_infor.name, message->user_infor.nickname, message->user_infor.sex, message->user_infor.password, message->user_infor.telephone);
     //printf("%s\n", str);
     int ret = mysql_real_query(&mysql, str, strlen(str));
     if(ret == 0) {

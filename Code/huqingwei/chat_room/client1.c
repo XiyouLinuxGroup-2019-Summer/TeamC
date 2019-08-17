@@ -390,6 +390,11 @@ int reg(int conn_fd) {
     while(getchar() != '\n');
     strcpy(message.user_infor.password, buf);
 
+    printf("电话号码：");
+    scanf("%s", buf);
+    while(getchar() != '\n');
+    strcpy(message.user_infor.telephone, buf);
+
     send(conn_fd, &message, sizeof(message), 0);
     recv(conn_fd, &message, sizeof(message), 0);
 
