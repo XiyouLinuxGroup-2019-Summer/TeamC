@@ -1,0 +1,185 @@
+<p>/<strong><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em></strong></p>
+
+<blockquote>
+  <p>File Name: client_menu.c
+Author: 
+Mail: 
+Created Time: 2019年08月17日 星期六 23时53分45秒
+ <strong><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em>**</strong>/</p>
+
+<h1>include "client_menu.h"</h1>
+</blockquote>
+
+<h1>include "log.h"</h1>
+
+<h1>include "socket.h"</h1>
+
+<h1>include "proto.h"</h1>
+
+<h1>include "client.h"</h1>
+
+<h1>include <stdio.h></h1>
+
+<h1>include <stdlib.h></h1>
+
+<h1>include <unistd.h></h1>
+
+<h1>include <sys/types.h></h1>
+
+<h1>include <pthread.h></h1>
+
+<p>void clear<em>input</em>buffer()
+{
+    while (getchar() != '\n')
+    ;
+}</p>
+
+<p>int user<em>register(client</em>t *client, const char *username, const char *password)
+{
+    request<em>register</em>t *req = create<em>request</em>register(username, password);
+    // 第一次发包
+    int nwritten = tcp<em>write(client->conn</em>fd, (char *)req, req->head.length);
+    // 判断协议头
+    if (nwritten != req->head.length) {
+        log<em>error("send to server failed, exit");
+        abort();
+    }
+    response</em>status<em>t *resp = (response</em>status<em>t *)malloc(sizeof(response</em>status<em>t));
+    // 收包 同理
+    int nread = tcp</em>read(client->conn<em>fd, (char *)resp, sizeof(response</em>status<em>t));
+    if (nread != sizeof(response</em>status<em>t)) {
+        log</em>error("recv from server failed, exit");
+        abort();
+    }
+    if (resp->head.type != RESP<em>STATUS) {
+        log</em>error("recv from server data type != RESP<em>STATUS, exit");
+        abort();
+    }
+    if (resp->head.magic != CR</em>PROTO<em>HEAD) {
+        log</em>error("recv from server data error, exit");
+        abort();
+    }
+    // 成功resp->status返回0 失败为1
+    int status = resp->status;
+    free(req);
+    free(resp);
+    return status;
+}
+int user<em>login(client</em>t *client, const char *username, const char *password)
+{
+    request<em>login</em>t  *req = create<em>request</em>login(username, password);
+    // 第一次发包
+    int nwritten = tcp<em>write(client->conn</em>fd, (char *)req, req->head.length);
+    // 判断协议头
+    if (nwritten != req->head.length) {
+        log<em>error("send to server failed, exit");
+        abort();
+    }
+    response</em>status<em>t *resp = (response</em>status<em>t *)malloc(sizeof(response</em>status<em>t));
+    // 收包 同理
+    int nread = tcp</em>read(client->conn<em>fd, (char *)resp, sizeof(response</em>status<em>t));
+    if (nread != sizeof(response</em>status<em>t)) {
+        log</em>error("recv from server failed, exit");
+        abort();
+    }
+    if (resp->head.type != RESP<em>STATUS) {
+        log</em>error("recv from server data type != RESP<em>STATUS, exit");
+        abort();
+    }
+    if (resp->head.magic != CR</em>PROTO<em>HEAD) {
+        log</em>error("recv from server data error, exit");
+        abort();
+    }
+    // 成功resp->status返回0 失败为1
+    int status = resp->status;
+    free(req);
+    free(resp);
+    return status;
+}</p>
+
+<p>cli<em>status</em>t show<em>register</em>menu()
+{
+    char username[USERNAME<em>LEN];
+    char password[PASSWORD</em>LEN];
+    printf("请输入您的用户名:");
+    scanf("%s", username);
+    printf("请输入您的密码:")
+    scanf("%s", password);
+    int status = user_register(&amp;client, username, password);
+    if (status == 0) {
+        printf("注册成功\n");
+    }
+    else {
+        printf("注册失败\n");
+    }
+    return INIT;
+}</p>
+
+<p>cli<em>status</em>t show<em>login</em>menu()
+{
+    char username[USERNAME<em>LEN];
+    char password[PASSWORD</em>LEN];
+    printf("请输入您的用户名:");
+    scanf("%s", username);
+    printf("请输入您的密码:");
+    scanf("%s", password);
+    int status = user_login(&amp;client, username, password);
+    if (status == 0) {
+        printf("登录成功");
+    } else {
+        printf("登录失败");
+    }
+    return INIT;
+}</p>
+
+<p>cli<em>status</em>t show<em>init</em>menu()
+{
+    time_t Time = time(NULL);
+    char <em>buf = ctime(&amp;Time);
+    printf("%s", buf);
+    int  choice = 0;
+    printf("|<strong></em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</strong>|\n");
+    printf("|          欢迎使用          |\n");
+    printf("|<strong></em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</strong>|\n");
+    printf("|       1、用户注册          |\n");
+    printf("|       2、用户登录          |\n");
+    printf("|       0、退出              |\n");
+    printf("|<strong></em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em><em>*</em>**</strong>|\n");
+    printf("请输入您要进行的操作:\n");
+    scanf("%d", &amp;choice);
+    switch (choice) {
+        case 1:
+        return REGISTER;
+        case 2:
+        return LOGIN;
+        case 0:
+        return EXIT;
+        default:
+        printf("输入错误!\n");
+        break;
+    }
+    return INIT;
+}</p>
+
+<p>void cli<em>show</em>menu()
+{
+    cli<em>status status = INIT;
+    while (status != EXIT) {
+        switch(status) {
+            case INIT:
+                status = show</em>init<em>menu();
+                break;
+            case REGISTER:
+                status = show</em>register<em>menu();
+                break;
+            case LOGIN:
+                status = show</em>login<em>menu();
+            case EXIT:
+                break;
+            default:
+                log</em>error("status unknown: %d", status);
+                abort();
+        }
+        clear<em>input</em>buffer();
+    }
+}</p>
