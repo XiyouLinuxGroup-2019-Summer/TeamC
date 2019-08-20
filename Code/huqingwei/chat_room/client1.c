@@ -117,6 +117,9 @@ int add_group(int conn_fd);             //申请加群
 int public_chat(int conn_fd);           //群聊
 int quit_group(int conn_fd);            //退出群聊
 int recv_file(MSG *message);            //接收文件
+int manage_group(int conn_fd);          //管理群
+int view_group_member(int conn_fd);     //查看群成员
+int break_group(int conn_fd);           //解散群
 
 int main(int argc, char * argv[])
 {
@@ -258,6 +261,9 @@ void *server_message(void *arg){
             //printf("目前没有好友在线\n");
             printf("目前你还没有好友\n");
             break;
+        case 122:
+            printf("目前没有好友在线\n");
+            break;
         case 12:
             printf("在线好友: %s\n", message.friend_name);
             break;
@@ -302,6 +308,9 @@ void *server_message(void *arg){
         case 140:
             printf("你们已经成为好友\n");
             break;
+        case 141:
+            printf("[%s] 该用户不存在\n", message.to_name);
+            break;
         case 15:
             printf("删除成功\n");
             break;
@@ -335,6 +344,24 @@ void *server_message(void *arg){
             break;
         case 241:
             printf("[%s] 你是该群的群主，不能退出，可选择解散群\n", message.to_group_name);
+            break;
+        case 251:
+            printf("%s\n", message.to_name);
+            break;
+        case 2510:
+            printf("[%s] 该群不存在\n", message.to_group_name);
+            break;
+        case 2511:
+            printf("[%s] 未加入该群\n", message.to_group_name);
+            break;
+        case 252:
+            printf("[%s] 解散完成\n", message.to_group_name);
+            break;
+        case 2520:
+            printf("[%s] 该群不存在\n", message.to_group_name);
+            break;
+        case 2521:
+            printf("[%s] 你不是该群的群主，不能解散该群\n", message.to_group_name);
             break;
         case 311:
             printf("\n%s 已成为你的好友\n", message.to_name);
@@ -759,6 +786,8 @@ int add_friend(int conn_fd){
         exit(1);
     }
 
+    sleep(1);
+
     printf("按回车键返回菜单\n");
     getchar();
 }
@@ -801,11 +830,11 @@ int choice_group(int conn_fd){
         printf("----------------------------\n");
         printf("☆      3.申请入群         ☆ \n");
         printf("----------------------------\n");
-        printf("       4.退出群聊           \n");
+        printf("☆      4.退出群聊         ☆ \n");
         printf("----------------------------\n");
         printf("       5.管理群             \n");
         printf("----------------------------\n");
-        printf("       0.返回上级菜单       \n");
+        printf("☆      0.返回上级菜单     ☆ \n");
         printf("----------------------------\n");
 
         while(1){
@@ -837,6 +866,9 @@ int choice_group(int conn_fd){
             break;
         case '4':
             quit_group(conn_fd);
+            break;
+        case '5':
+            manage_group(conn_fd);
             break;
         }
     }
@@ -942,6 +974,104 @@ int quit_group(int conn_fd){
     }
 }
 
+int manage_group(int conn_fd){
+    char choice[10];
+    memset(choice, 0, sizeof(choice));
+
+    while(1){
+        system("clear");
+        printf("---------------------------\n");
+        printf("☆      1.查看群成员      ☆ \n");
+        printf("---------------------------\n");
+        printf("☆      2.解散群          ☆ \n");
+        printf("---------------------------\n");
+        printf("       3.设置管理员        \n");
+        printf("---------------------------\n");
+        printf("       4.移出群成员        \n");
+        printf("---------------------------\n");
+        printf("☆      5.返回上级菜单    ☆ \n");
+        printf("---------------------------\n");
+
+        while(1){
+            printf("请输入你的选择：");
+            scanf("%s", choice);
+            while(getchar() != '\n')
+                continue;
+
+            if(strcmp(choice, "1")==0||strcmp(choice, "2")==0||strcmp(choice, "3")==0||
+               strcmp(choice, "4")==0||strcmp(choice, "0")==0){
+                break;
+            }
+            else{
+                printf("请按照提示输入\n");
+            }
+        }
+
+        switch(choice[0]){
+        case '0':
+            return 0;
+        case '1':
+            view_group_member(conn_fd);
+            break;
+        case '2':
+            break_group(conn_fd);
+            break;
+        }
+    }
+}
+
+int view_group_member(int conn_fd){
+    MSG message;
+    int len = sizeof(message);
+    char buf[200];
+    memset(&message, 0, sizeof(message));
+    memset(buf, 0, sizeof(buf));
+
+    message.cmd = 251;
+
+    printf("请输入你要查看的群:");
+    scanf("%s", buf);
+    while(getchar() != '\n')
+        continue;
+    strcpy(message.to_group_name, buf);
+
+    strcpy(message.from_name, myname);
+
+    if(send(conn_fd, &message, sizeof(message), 0) != len){
+        my_err("send", __LINE__-1);
+    }
+
+    sleep(1);
+    printf("按回车键返回菜单");
+    getchar();
+}
+
+int break_group(int conn_fd){
+    MSG message;
+    int len = sizeof(message);
+    char buf[200];
+    memset(&message, 0, sizeof(message));
+    memset(buf, 0, sizeof(buf));
+
+    message.cmd = 252;
+
+    printf("请输入你要解散的群名:");
+    scanf("%s", buf);
+    while(getchar() != '\n')
+        continue;
+    strcpy(message.to_group_name, buf);
+
+    strcpy(message.from_name, myname);
+
+    if(send(conn_fd, &message, sizeof(message), 0) != len){
+        my_err("send", __LINE__-1);
+    }
+
+    sleep(1);
+    printf("按回车键返回菜单\n");
+    getchar();
+}
+
 int deal_request(int conn_fd){
     char choice[10];
     //MSG message;
@@ -952,10 +1082,13 @@ int deal_request(int conn_fd){
     while(1){
         system("clear");
         printf("--------------------------\n");
-        printf("       1.好友申请\n");
-        printf("       2.入群申请\n");
-        printf("       3.文件消息\n");
-        printf("       0.返回上级菜单\n");
+        printf("☆      1.好友申请       ☆ \n");
+        printf("--------------------------\n");
+        printf("☆      2.入群申请       ☆ \n");
+        printf("--------------------------\n");
+        printf("       3.文件消息         \n");
+        printf("--------------------------\n");
+        printf("☆      0.返回上级菜单   ☆ \n");
         printf("--------------------------\n");
 
         while(1){
