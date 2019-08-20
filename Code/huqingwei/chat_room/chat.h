@@ -32,6 +32,11 @@ typedef struct msg {
     struct group group;                 //群消息，群信息
     //struct yonghu_infor user;           //用户信息
     char news[1024];
+    int file_len;                       //文件大小
+    int once_len;                       //文件一次发送的大小
+    char file_path[200];                //文件的绝对路径
+    char file_name[256];                //文件名
+    int send_end;                       //文件发送结束通知服务器
     int friend_num;                     //好友个数
     char friend_name[20];               //好友名字
     int cmd;                            //登录注册消息类型
