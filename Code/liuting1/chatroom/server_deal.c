@@ -54,23 +54,16 @@ void recv_PACK(int conn_fd)
     PACK pack;
     cli_fd = conn_fd;
     int ret;
-    char *str = (char *)&pack;
-    int sum = 0;
-    while((ret = recv(cli_fd, str + sum,sizeof(PACK) - sum ,0)) > 0) {
-        sum += ret;
-        if (sum == sizeof(PACK)) {
-            break;
-        }
+    if((ret = recv(cli_fd, &pack,sizeof(PACK) ,MSG_WAITALL)) > 0) {
+        perror("server_recv");
     }
-    bzero(&pack,sizeof(PACK));
-    if((ret = recv(conn_fd, &pack, sizeof(struct package),0)) < 0){
-        perror("recv");
-        exit(1);
+    if (ret == 0 ) {
+         int ret   = MYSQL_exit(pack.account);
+        printf("客户端%d退出成功\n",pack.account);
+        close(cli_fd);
+        return;
     }
-    if (ret == 0)
-    {
-        return ;
-    }
+    
     deal(pack);
 }
 
@@ -99,9 +92,7 @@ void deal(PACK pack)
     pthread_t send2_f;
     switch (type)
     {
-        case 0:
-            deal_exit(pack);
-            break;
+       
         case 1:
             deal_login(pack);
             break;
@@ -216,20 +207,7 @@ void deal_repass(PACK pack)
     send_PACK(send_pack);
 }
 
-void deal_exit(PACK pack)
-{
-    PACK send_pack;
-    int ret   = MYSQL_exit(pack.account);
-    if(ret != -1) {
-        send_pack.type = 0;
-    }
-    else {
-        send_pack.type =-1;
-    }
-    printf("客户端%d退出成功\n",pack.account);
-    send_PACK(send_pack);
 
-}
 
 void deal_list_fri(PACK pack)
 {

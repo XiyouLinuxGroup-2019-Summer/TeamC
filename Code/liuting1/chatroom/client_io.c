@@ -207,6 +207,7 @@ void send_exit_PACK()
    if(send(cli_fd, &pack, sizeof(PACK),0)<0) {
        perror("send_exit");
    }
+
 }
 
 void send_addfriend_PACK()
@@ -443,13 +444,8 @@ void *recv_PACK()
     while (1) {
         bzero(&pack,sizeof(PACK));
         int ret;
-        char *str = (char *)&pack;
-        int sum = 0;
-        while((ret = recv(cli_fd, str + sum,sizeof(PACK) - sum ,0)) > 0) {
-            sum += ret;
-            if (sum == sizeof(PACK)) {
-                break;
-            }
+        if((ret = recv(cli_fd, &pack, sizeof(PACK) ,MSG_WAITALL)) > 0) {
+            perror("client_recv");
         }
             switch (pack.type) {
                 case ADD_FRIEND:
@@ -632,7 +628,7 @@ void recv_store_chat()
 {
     STR str;
     while(1) {
-        if(recv(cli_fd, &str, sizeof(STR), 0)>0) {
+        if(recv(cli_fd, &str, sizeof(STR), MSG_WAITALL)>0) {
             for(int i = 0; i<str.len; i++) {
                 printf("send_account:%d\t", str.account[i]);
                 printf("recv_account:%d\t", str.send_account[i]);
@@ -649,7 +645,7 @@ void recv_list_fri()
     while(1) {
         int ret;
         memset(&p, 0, sizeof(fri));
-        if(recv(cli_fd, &p,sizeof(fri), 0)>0) {
+        if(recv(cli_fd, &p,sizeof(fri), MSG_WAITALL)>0) {
             for(int i = 0; i < p.len; i++) {
                 printf("account:%d  ",p.account[i]);
                 printf("昵称:%s\n",p.name[i]);
@@ -665,7 +661,7 @@ void recv_online_fri()
     while(1) {
         int ret;
         memset(&p, 0, sizeof(fri));
-        if(recv(cli_fd, &p,sizeof(fri), 0)>0) {
+        if(recv(cli_fd, &p,sizeof(fri), MSG_WAITALL)>0) {
             for(int i = 0; i < p.len; i++) {
                 if(p.account[i] != 0) {
                     printf("account:%d  ",p.account[i]);
@@ -709,7 +705,7 @@ void recv_group_mes(PACK pack)
     GROUP p;
     while(1) {
         memset(&p, 0, sizeof(GROUP));
-        if(recv(cli_fd, &p,sizeof(GROUP), 0)>0) {
+        if(recv(cli_fd, &p,sizeof(GROUP), MSG_WAITALL)>0) {
             for(int i = 0; i < p.len; i++) {
                 if(p.account[i] != 0) {
                     printf("群员account:%d\t",p.account[i]);
@@ -806,7 +802,7 @@ void recv_store_group(PACK pack)
         while(1) {
             int ret;
             STR_G p;
-            if(recv(cli_fd, &p,sizeof(STR_G), 0)>0) {
+            if(recv(cli_fd, &p,sizeof(STR_G), MSG_WAITALL)>0) {
                 for(int i = 0; i < p.len; i++) {
                     if(p.usr_account[i] != 0) {
                         printf("account:%d  ",p.usr_account[i]);

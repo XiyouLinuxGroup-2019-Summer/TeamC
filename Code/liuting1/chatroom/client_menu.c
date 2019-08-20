@@ -62,7 +62,7 @@ char main_menu()
         choice = getch();
         deal(choice);
         printf("按任意键返回主菜单\n");
-        getch();
+        //getch();
     }while(1);
 } 
 
