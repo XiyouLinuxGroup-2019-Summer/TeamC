@@ -54,6 +54,14 @@ void recv_PACK(int conn_fd)
     PACK pack;
     cli_fd = conn_fd;
     int ret;
+    char *str = (char *)&pack;
+    int sum = 0;
+    while((ret = recv(cli_fd, str + sum,sizeof(PACK) - sum ,0)) > 0) {
+        sum += ret;
+        if (sum == sizeof(PACK)) {
+            break;
+        }
+    }
     bzero(&pack,sizeof(PACK));
     if((ret = recv(conn_fd, &pack, sizeof(struct package),0)) < 0){
         perror("recv");
@@ -150,8 +158,7 @@ void deal(PACK pack)
             break;
         case 18:
             send_file(pack);
-            break;
-           
+            break; 
         case JOIN_USER:
             deal_join_user(pack);
             break;

@@ -440,11 +440,16 @@ void send_dele_user()
 void *recv_PACK()
 {
     PACK pack;
-    int ret;
     while (1) {
         bzero(&pack,sizeof(PACK));
-        if ((ret = recv(cli_fd, &pack, sizeof(PACK), 0)) < 0) {
-            perror("recv");
+        int ret;
+        char *str = (char *)&pack;
+        int sum = 0;
+        while((ret = recv(cli_fd, str + sum,sizeof(PACK) - sum ,0)) > 0) {
+            sum += ret;
+            if (sum == sizeof(PACK)) {
+                break;
+            }
         }
             switch (pack.type) {
                 case ADD_FRIEND:
@@ -490,11 +495,6 @@ void *recv_PACK()
                         recv_set_up(pack);
                         break;
                 case SEND_FILE:
-                        //pthread_mutex_lock(&mutex);
-                        //pthread_cond_signal(&cond);
-                        //pthread_mutex_unlock(&mutex);
-                        //break;
-                        //case OK_FILE:
                         recv_file(pack);
                         break;
                 case JOIN_USER:

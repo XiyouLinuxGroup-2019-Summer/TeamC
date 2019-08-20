@@ -114,6 +114,7 @@ void deal(char choice)
         case '0':
             send_exit_PACK();
             exit(0);
+            break;
         case 'a':
             send_list_fri();
             break;
@@ -176,6 +177,7 @@ void deal(char choice)
             break;
         default:
             printf("狗子你要好好输入啊！！！\n");
+            break;
     }
 }
 

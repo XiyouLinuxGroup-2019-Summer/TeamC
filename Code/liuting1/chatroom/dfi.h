@@ -40,31 +40,31 @@ typedef struct package {
 } PACK;
 
 typedef struct friends {  //好友列表
-    int  account[200];
-    char name[200][100];
-    int online[200];
+    int  account[50];
+    char name[50][100];
+    int online[50];
     int  len;
 }fri;
 
 typedef struct store_chat { //私聊记录
-    int account[1000];
-    int send_account[1000];
-    char mes[1000][1000];
+    int account[100];
+    int send_account[100];
+    char mes[100][1000];
     int len;
 }STR;
 
 typedef struct group {  //群信息
-    int account[200];
-    char name[200][100];
-    int online[200];
-    int cli_fd[200];
-    int flag[200];
+    int account[50];
+    char name[50][100];
+    int online[50];
+    int cli_fd[50];
+    int flag[50];
     int len;
 }GROUP;
 
 typedef struct store_group {
-    int usr_account[1000];
-    char use_name[1000][100];
-    char mes[1000][1000];
+    int usr_account[100];
+    char use_name[100][100];
+    char mes[100][1000];
     int len;
 }STR_G;
