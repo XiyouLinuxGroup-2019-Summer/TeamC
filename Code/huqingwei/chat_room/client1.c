@@ -367,19 +367,28 @@ void *server_message(void *arg){
 
 int recv_file(MSG *message){
     int file_fd;
-    char buf[256];
+    char buf[1024];
     memset(buf, 0, sizeof(buf));
 
+    printf("filename:%s\n", message->file_name);
     sprintf(buf, "%s", message->file_name);
+    //sprintf(buf, "/home/huloves/123");
     printf("buf:%s\n", buf);
-    file_fd = open(buf, O_RDWR | O_CREAT, 0644);
+    //creat(buf, 0777);
+    file_fd = open(buf, O_RDWR | O_CREAT, 0777);
     if(file_fd == -1){
         my_err("open", __LINE__-2);
     }
+    printf("A\n");
 
-    while(recv(fd, message->news, sizeof(message->news)-1, 0) > 0){
-        write(file_fd, message->news, sizeof(message->news));
-        printf("正在接收...\n");
+    while(recv(fd, message, sizeof(MSG), 0)){
+        //printf("B\n");
+        if(message->send_end == 1){
+            printf("接收完成...\n");
+            break;
+        }
+        printf("正在接收文件......size = %d\n", message->once_len);
+        write(file_fd, message->news, message->once_len);
     }
 
     close(file_fd);
@@ -875,7 +884,7 @@ int public_chat(int conn_fd){
         memset(now_time, 0, sizeof(now_time));
         memset(buf, 0, sizeof(buf));
         strcpy(now_time, my_time());
-        printf("%s %s :\n", now_time, message.from_name);
+        //printf("%s %s :\n", now_time, message.from_name);
         scanf("%s", buf);
         while(getchar() != '\n')
             continue;
@@ -1184,27 +1193,28 @@ int send_file(int conn_fd){
         my_err("send", __LINE__-1);
     }
 
-    /*int once_len = read(fd, buf, sizeof(buf));
-    //strcpy(message.news, buf);
-    while(once_len > 0){
-        strcpy(message.news, buf);
-        message.once_len = once_len;
-        if(send(conn_fd, &message, sizeof(message), 0) != len){
-            my_err("send", __LINE__-1);
-        }
-        once_len = read(fd, buf, sizeof(buf));
-    }*/
-
-    memset(message.news, 0, sizeof(message.news));
-    while(1){
-        if(read(fd, message.news, sizeof(message.news)-1)){
+    int size = 0;
+    /*while(1){
+        if(size = read(fd, message.news, sizeof(message.news)-1)){
+            printf("size:%d", size);
             send(conn_fd, message.news, sizeof(message.news)-1, 0);
             printf("正在发送文件...\n");
         }
         else{
             break;
         }
+    }*/
+    message.send_end = 0;
+    while(size = read(fd, message.news, sizeof(message.news))){
+        printf("正在发送文件......size = %d\n", size);
+        message.once_len = size;
+        send(conn_fd, &message, sizeof(message), 0);
     }
+    printf("发送结束...\n");
+    message.send_end = 1;
+    send(conn_fd, &message, sizeof(message), 0);  //通知服务器发送结束
+    
+    //printf("------size:%d\n", size);
 
     printf("按回车键返回菜单\n");
     getchar();

@@ -997,7 +997,7 @@ void public_chat(int conn_fd, MSG *message){
 
     //查看发送者是否有该群
     char str[4096];
-    sprintf(str, "select * from group_relationship where group_name = '%s' and user_name = %s",
+    sprintf(str, "select * from group_relationship where group_name = '%s' and user_name = '%s'",
                 message->to_group_name, message->from_name);
 
     int ret = mysql_real_query(&mysql, str, strlen(str));
@@ -1006,6 +1006,7 @@ void public_chat(int conn_fd, MSG *message){
         printf("mysql_real_query(): error\n");
         mysql_close(&mysql);
         mysql_close(&mysql);
+        exit(1);
     }
 
     MYSQL_RES *mysql_res = NULL;
@@ -1050,6 +1051,11 @@ void public_chat(int conn_fd, MSG *message){
     MYSQL_ROW row;
     //rows = mysql_num_rows(mysql_res);
     while(row = mysql_fetch_row(mysql_res)){
+        printf("row[1]:%s \t from_name:%s\n", row[1], message->from_name);
+        //如果是自己就跳过
+        if(strcmp(row[1], message->from_name) == 0){
+            continue;
+        }
         //查看目标用户是否在线
         Node *current = head;
         int flag = 0;
@@ -1059,7 +1065,7 @@ void public_chat(int conn_fd, MSG *message){
                 break;
             }
             current = current->next;
-        }        
+        }
         //将目标用户储存在message中
         strcpy(message->to_name, row[1]);
         //未找到目标用户，目标用户不在线，储存在群消息记录中
@@ -1624,30 +1630,36 @@ void send_file(int conn_fd, MSG *message){
     //获得文件名
     char file_name[256];
     strcpy(file_name, get_file_name(message->file_path));
-
+    strcpy(message->file_name, file_name);
+    
     //临时存储
-    //sprintf(buf, "~/chat_room_file/%s", message->file_path);
     sprintf(buf, "/home/huloves/chat_room_file/%s", file_name);
-    printf("buf:%s\n", buf);
-    strcpy(message->friend_name, file_name);
+    //printf("buf:%s\n", buf);
+    //strcpy(message->file_name, file_name);
     fd = open(buf, O_RDWR | O_CREAT, 0644);
     if(fd == -1){
         my_err("open", __LINE__-2);
     }
 
-    int size = 0;
-    while((size = recv(conn_fd, message->news, sizeof(message->news), 0)) > 0){
-        printf("recv_size:%d ", size);
-        write(fd, message->news, sizeof(message->news)-1);  //----------------
-        printf("正在接受文件...\n");
+    //int size = 0;
+
+    //接收文件
+    //printf("size = %d\n", message->once_len);
+    while(recv(conn_fd, message, sizeof(MSG), 0)){
+        //printf("A\n");
+        if(message->send_end == 1){
+            printf("接收完成...\n");
+            break;
+        }
+        printf("正在接收文件......size = %d\n", message->once_len);
+        write(fd, message->news, message->once_len);
     }
-    printf("A\n");
 
     //查看目标用户是否在线
     int flag = 0;
     Node *current = head;
     while(current != NULL){
-        printf("A\n");
+        //printf("A\n");
         if(strcmp(current->date.name, message->to_name) == 0){
             flag = 1;
             break;
@@ -1656,26 +1668,30 @@ void send_file(int conn_fd, MSG *message){
     }
 
     if(flag == 0){  //不在线
+        printf("目标不在线\n");
         return;
     }
-    printf("flag = %d\n", flag);
 
     //通知目标用户有文件要接受
+    strcpy(message->file_name, file_name);
+    printf("*********file_name:%s\n", message->file_name);
     send(current->date.socket, message, sizeof(MSG), 0);
 
     if(lseek(fd, 0, SEEK_SET) == -1){
         my_err("lseek", __LINE__-1);
     }
 
-    while(1){
-        if(read(fd, message->news, sizeof(message->news)-1)){
-            send(current->date.socket, message->news, sizeof(message->news), 0);
-            printf("正在发送...\n");
-        }
-        else{
-            break;
-        }
+    //发送文件
+    int size = 0;
+    message->send_end = 0;
+    while(size = read(fd, message->news, sizeof(message->news))){
+        printf("正在发送文件... size = %d\n", size);
+        message->once_len = size;
+        send(current->date.socket, message, sizeof(MSG), 0);
     }
+    printf("发送结束...\n");
+    message->send_end = 1;
+    send(current->date.socket, message, sizeof(MSG), 0); //通知发送完成
     
     close(fd);
     mysql_free_result(mysql_res);
