@@ -24,6 +24,10 @@
 #define CHAT_GROUP  15
 #define STORE_G     16
 #define SET_UP      17
+#define SEND_FILE   18
+#define OK_FILE     19
+#define JOIN_USER   20
+#define DELE_USER   21
 
 typedef struct package {
     int  type;

@@ -25,6 +25,9 @@ void send_group_mes();
 void send_chat_group();
 void send_find_store_g();
 void send_set_up();
+void send_file();
+void send_join_user();
+void send_dele_user();
 
 void *recv_PACK();
 void recv_ADDFR_();

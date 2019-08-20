@@ -11,6 +11,10 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdlib.h>
+#include <pthread.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 
 static int cli_fd;
@@ -35,17 +39,22 @@ void deal_group_mes(PACK);
 void deal_chat_group(PACK);
 void deal_find_store_g(PACK);
 void deal_set_up(PACK);
+void deal_join_user(PACK);
+void deal_dele_user(PACK);
 
 void deal(PACK pack);
 void pro_off(int , int);
-void deal_off(PACK pack);
+void deal_fri_off(PACK pack);
+void deal_group_off(PACK pack);
 void recv_addfr_PACK(PACK);
+void send_file(PACK);
 
 void recv_PACK(int conn_fd)
 {
     PACK pack;
     cli_fd = conn_fd;
     int ret;
+    bzero(&pack,sizeof(PACK));
     if((ret = recv(conn_fd, &pack, sizeof(struct package),0)) < 0){
         perror("recv");
         exit(1);
@@ -78,6 +87,8 @@ void deal(PACK pack)
 {
     int type = pack.type;
     MYSQL_init();
+    pthread_t send_f;
+    pthread_t send2_f;
     switch (type)
     {
         case 0:
@@ -137,7 +148,16 @@ void deal(PACK pack)
         case 17:
             deal_set_up(pack);
             break;
-
+        case 18:
+            send_file(pack);
+            break;
+           
+        case JOIN_USER:
+            deal_join_user(pack);
+            break;
+        case DELE_USER:
+            deal_dele_user(pack);
+            break;
     }
 }
 void deal_login(PACK pack)
@@ -199,6 +219,7 @@ void deal_exit(PACK pack)
     else {
         send_pack.type =-1;
     }
+    printf("客户端%d退出成功\n",pack.account);
     send_PACK(send_pack);
 
 }
@@ -240,12 +261,13 @@ void deal_chat_fri(PACK pack)
         return ;
     }
     fri f = MYSQL_find_fd(pack.send_account);
-    strcpy(pack.send_name , f.name[0]);
+    fri f2 = MYSQL_find_fd(pack.account);
+    strcpy(pack.send_name , f2.name[0]);
     if(MYSQL_store_chat(pack.account,pack.send_account,pack.mes) != 0) {
          printf("聊天记录存入失败\n");
     }
     if(f.online[0] == 0) {
-        deal_off(pack);
+        deal_fri_off(pack);
     }
     else {
         send_other_PACK(pack, f.account[0]);
@@ -366,7 +388,6 @@ void deal_group_mes(PACK pack)
     PACK send_pack;
     GROUP group;
     send_pack.type = GROUP_MES;
-    printf("%d\n",pack.send_account);
     char *p =  MYSQL_group_name(pack.send_account);
     int tmp;
     tmp = strcmp(p, "fail");
@@ -423,7 +444,7 @@ void deal_chat_group(PACK pack)
                     send_other_PACK(send_pack, group.cli_fd[i]);
                 }
                 else {
-                    deal_off(send_pack); 
+                    deal_group_off(send_pack); 
                 }
             }
 
@@ -475,8 +496,14 @@ void deal_set_up(PACK pack)
     int ret = MYSQL_find_gowner(pack.account, pack.send_account);
     if(ret == 0) {
         set_account =atoi(pack.mes);
-        MYSQL_set_up(pack.send_account, set_account);
-        strcpy(pack.mes, "设置成功");
+        ret = MYSQL_find_group_member(set_account, pack.send_account);
+        if(ret == 0) {
+            MYSQL_set_up(pack.send_account, set_account);
+            strcpy(pack.mes, "设置成功,他已经是管理员了哦！！");
+        }
+        else {
+            strcpy(pack.mes, "你要设置的并不是群成员，快去拉他进群吧!!!");
+        }
     }
     else {
         pack.send_account = 0;
@@ -484,6 +511,66 @@ void deal_set_up(PACK pack)
     }
     send_PACK(pack);
     
+}
+
+void deal_join_user(PACK pack)
+{
+    int ret;
+    int set_account;
+    ret = MYSQL_find_group_member(pack.account, pack.send_account);
+    if(ret == 0) {
+        set_account = atoi(pack.mes);
+        ret = MYSQL_find_group_member(set_account, pack.send_account);
+        if(ret == 0)
+        {
+            strcpy(pack.mes, "他已经是该群成员，快去聊天吧！！");
+            send_PACK(pack);
+            return;
+        }
+        MYSQL_join_group(set_account , pack.send_account);
+        fri f = MYSQL_find_fd(pack.send_account);
+        strcpy(pack.mes, "你已成功邀请他进群");
+        send_PACK(pack);
+        sprintf(pack.mes, "你被账号%d拉进群%d",pack.account, pack.send_account);
+        pack.send_account = set_account;
+        if(f.online[0] == 1) {
+            send_other_PACK(pack,f.account[0]); 
+        }
+        else {
+            deal_fri_off(pack);
+        } 
+    }
+    else {
+        strcpy(pack.mes, "该群不存在，或者你并不是该群成员，无法操作!!!");
+        send_PACK(pack);
+    }
+    
+}
+
+void deal_dele_user(PACK pack)
+{
+    int ret;
+    int set_account;
+    ret = MYSQL_find_group_vip(pack.account, pack.send_account);
+    if(ret == 0) {
+        set_account = atoi(pack.mes);
+        MYSQL_quit_group(set_account , pack.send_account);
+        fri f = MYSQL_find_fd(pack.send_account);
+        strcpy(pack.mes, "你已成功从群聊中删除他");
+        send_PACK(pack);
+        pack.send_account = set_account;
+        sprintf(pack.mes, "你被账号%d从群%d删除",pack.account, pack.send_account);
+         if(f.online[0] == 1) {
+            send_other_PACK(pack,f.account[0]); 
+        }
+        else {
+            deal_fri_off(pack);
+        }       
+    }
+    else {
+        strcpy(pack.mes, "该群不存在，或者你并不是该群管理员，无法操作!!!");
+        send_PACK(pack);
+    }
 }
 
 typedef struct off{
@@ -498,7 +585,7 @@ typedef struct off{
 OFF *phead = NULL;
 OFF *pend = NULL;
 
-void deal_off(PACK pack)
+void deal_group_off(PACK pack)
 {
     if (phead == NULL) {
         phead = (OFF *)malloc(sizeof(OFF));
@@ -517,7 +604,25 @@ void deal_off(PACK pack)
     pend->next = pnew;
     pend = pnew;
 }
-
+void deal_fri_off(PACK pack)
+{
+    if (phead == NULL) {
+        phead = (OFF *)malloc(sizeof(OFF));
+        phead->next =NULL;        
+        pend = phead;
+    }
+    OFF *pnew;
+    pnew = (OFF *)malloc(sizeof(OFF));
+    strcpy(pnew->mes , pack.mes);
+    //strcpy(pnew->mes2,pack.mes2);
+    pnew->account = pack.account;
+    //strcpy(pnew->send_name , pack.send_name);
+    pnew->send_account = pack.send_account;
+    pnew->type = pack.type;
+    pnew->next = NULL;
+    pend->next = pnew;
+    pend = pnew;
+}
 void pro_off(int send_account, int send_cli_fd)
 {
     if (phead == NULL) {
@@ -556,19 +661,19 @@ void deal_addfriend(PACK pack)
     }
     PACK send_pack;
     fri f = MYSQL_find_fd(pack.send_account);
+    fri f2= MYSQL_find_fd(pack.account);
     if(f.account[0] == -1) {
         strcpy(pack.mes,"你输入的账号不正确，请正确输入!!!");
         send(cli_fd, &pack, sizeof(PACK), 0);
         return ;
     }
-    strcpy(pack.send_name , f.name[0]);
-    sprintf(send_pack.mes,"账号%s申请加你为好友，是否同意",pack.send_name);  
+    strcpy(pack.send_name , f2.name[0]);
+    sprintf(send_pack.mes,"账号%s申请加你为好友，是否同意",pack.send_name); 
     send_pack.account = pack.account;
     send_pack.send_account = pack.send_account;
     send_pack.type = ADD_FRIEND;
-    
     if(f.online[0] == 0) {
-        deal_off(send_pack);
+        deal_fri_off(send_pack);
     }
     else {
         send_other_PACK(send_pack,f.account[0]);      
@@ -579,14 +684,88 @@ void deal_addfriend(PACK pack)
 void recv_addfr_PACK(PACK recv_pack)
 {
     if(recv_pack.type == 41) {
-        printf("成功，为：%s\n",recv_pack.mes);
+            fri fri = MYSQL_find_fd(recv_pack.send_account);
             if(strcmp(recv_pack.mes,"success") == 0) {
+                sprintf(recv_pack.mes,"你和%d已经成功加为好友了，快去聊天吧！！",recv_pack.account);
                 if(MYSQL_addfriend_store(recv_pack.account , recv_pack.send_account) == 0) {
                     printf("添加好友信息成功!!!\n");
-                    }
+                }     
+            }
+            else {
+                    sprintf(recv_pack.mes,"%d拒绝了你的好友申请，他真是个傻逼！！",recv_pack.account);
+
                 }
+            send_other_PACK(recv_pack, fri.account[0]);
     }
     else {
             printf("好友信息返回失败\n");
     }
 }
+
+
+int file_send_account = 0;
+fri f;
+void send_file(PACK pack)
+{
+    if(file_send_account == 0) {
+        printf("#######\n");
+	    file_send_account = pack.send_account;
+        f = MYSQL_find_fd(pack.send_account);
+        send_other_PACK(pack, f.account[0]);
+
+    }
+    else {
+         if(file_send_account == pack.send_account) {
+	    send_other_PACK(pack, f.account[0]);
+	 }
+	 else {
+         printf("&&&&&&&&&\n");
+	        file_send_account = pack.send_account;
+            f = MYSQL_find_fd(pack.send_account);
+            send_other_PACK(pack, f.account[0]);
+        }
+    }
+}
+
+/*void *SEND_File(void *arg)
+{
+    pthread_detach(pthread_self());
+    PACK pack = *(PACK *)arg;
+    PACK send_pack;
+    int fd;
+    if( (fd = open("/home/lt/test/test.c", O_RDWR|O_CREAT|O_APPEND, S_IRUSR| S_IWUSR)) == -1) {
+        perror("open");
+    }
+
+    if(write(fd, pack.mes, 999) < 0) {
+        perror("write");
+    }
+
+    send_pack.type = SEND_FILE;
+    send_PACK(send_pack);
+    close(fd);
+
+}*/
+
+/*void *send2_file(void *arg)
+{
+    pthread_detach(pthread_self());
+    PACK send_pack;
+    memset(&send_pack, 0, sizeof(send_pack));
+    
+    int fd;
+    char path[100];
+    strcpy(path, "home/lt/tmp");
+    if((fd = open(path, O_RDONLY)) == -1) {
+            perror("**send_open");
+    }
+
+    while(read(fd, send_pack.mes, 999) > 0) {
+        send_pack.type = OK_FILE;
+        send_PACK(send_pack);
+        memset(&send_pack, 0, sizeof(send_pack));
+    }
+
+    close(fd);
+
+}*/

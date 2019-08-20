@@ -289,20 +289,21 @@ fri MYSQL_online_fri(int account)
     printf("%d\n",p.len);
     for(i = 0; i < p.len; i++)
     {
-        sprintf(buff,"select * from user where id = %d,online = 1",p.account[i]);
+        sprintf(buff,"select * from user where id = %d and online = 1",p.account[i]);
+        printf("%s\n", buff);
         ret = mysql_query(&mysql, buff);
         if (!ret) {
             result = mysql_store_result(&mysql);    //返回查询结果
-            if (!result) {
-                perror("list_friend:mysql_store_result");
-            }
-            while (row=mysql_fetch_row(result)) {
+            
+            if (row=mysql_fetch_row(result)) {
+                printf("%s\n",row[1]);
                 strcpy(p.name[i] , row[1]);
             }
+            else {
+                p.account[i] = 0;
+            }
         }
-        else {
-            p.account[i] = 0;
-        }
+        
     }
     mysql_close(&mysql);
     return p;
@@ -631,10 +632,32 @@ STR_G MYSQL_find_chat_group(int account)
 
 int MYSQL_set_up(int group_id, int set_account)
 {
+    MYSQL_init();
     char buff[1000]; 
     sprintf(buff,"update g_meber set member_flag = 2 where group_id = %d and group_member = %d",group_id , set_account);  
-    if(mysql_query(&mysql, buff)) {
-        perror("login:mysql_query");
-    }
+    printf("%s\n",buff);
+    mysql_query(&mysql, buff);
     return 0;
 }
+
+int MYSQL_find_group_vip(int account, int group_id)
+{
+ MYSQL_init();
+    char buff[1000];
+    int ret;
+    sprintf(buff,"select * from g_meber  where group_member = %d and group_id = %d and (member_flag != 0)",account,group_id);
+    ret = mysql_query(&mysql, buff);
+    if (!ret) {
+        result = mysql_store_result(&mysql);    //返回查询结果
+        if (!result) {
+            perror("list_friend:mysql_store_result");
+        }
+        if ((mysql_fetch_row(result))) {
+            mysql_close(&mysql);
+            return 0;
+        }
+    }
+     mysql_close(&mysql);
+    return -1;
+}
+

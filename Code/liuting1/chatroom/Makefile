@@ -1,2 +1,1 @@
-	gcc server.c server_init.c server_deal.c MYSQL.c MYSQL.h server_deal.h server_deal.h -lmysqlclient -o Server
-
+	gcc client.c client_io.c client_menu.c client_init.c

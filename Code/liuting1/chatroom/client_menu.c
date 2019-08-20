@@ -23,7 +23,7 @@ char login_menu()
     printf("\t\t\033[;34m*\033[0m        1. 登录             \033[;34m*\033[0m \n");
     printf("\t\t\033[;34m*\033[0m        2. 注册             \033[;34m*\033[0m \n");
     printf("\t\t\033[;34m*\033[0m        3. 修改密码         \033[;34m*\033[0m \n");
-    printf("\t\t\033[;34m*\033[0m        4. 找回密码         \033[;34m*\033[0m \n");
+   
     printf("\t\t\033[;34m*\033[0m        0. 退出             \033[;34m*\033[0m \n");
     printf("\t\t\033[;34m*******************************\033[0m\n");  
     choice = getch();
@@ -55,7 +55,8 @@ char main_menu()
         printf("\t\t*        p.  私聊记录       *\n");
         printf("\t\t*        q.  群聊记录       *\n");
         printf("\t\t*        r.  设管理员       *\n");
-
+        printf("\t\t*        s.  群拉人         *\n");
+        printf("\t\t*        t.  群踢人         *\n");
         printf("\t\t*        0.  退出           *\n");
         printf("\t\t****************************\n");
         choice = getch();
@@ -107,6 +108,7 @@ void  main_login(int cli_fd)
 
 void deal(char choice)
 {
+    
     switch (choice)
     {
         case '0':
@@ -145,6 +147,9 @@ void deal(char choice)
         case 'k':
             send_chat_group();
             break;
+        case 'l':
+            send_file();
+            break;
         case 'm':
             recv_ADDFR_();
             break;
@@ -162,6 +167,12 @@ void deal(char choice)
             break;
         case 'r':
             send_set_up();
+            break;
+        case 's':
+            send_join_user();
+            break;
+        case 't':
+            send_dele_user();
             break;
         default:
             printf("狗子你要好好输入啊！！！\n");
