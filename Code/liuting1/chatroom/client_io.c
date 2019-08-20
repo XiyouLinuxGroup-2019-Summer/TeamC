@@ -25,7 +25,7 @@ void recv_ADDFR_();
 void recv_ADDFR(PACK);
 void recv_CHAT_FRI(PACK);
 void recv_store_chat();
-void recv_list_fri();
+void recv_list_fri(PACK);
 void recv_online_fri();
 void recv_creat_group(PACK);
 void recv_join_group(PACK);
@@ -96,7 +96,7 @@ int recv_deal_PACK()
     while(1) {
         int ret;
         memset(&pack, 0, sizeof(PACK));
-        if((ret = recv(cli_fd, &pack,sizeof(PACK), 0))>0) {
+        if((ret = recv(cli_fd, &pack,sizeof(PACK), 0)) < 0) {
             if(pack.type == 0) {
                 return 0;
             }
@@ -444,7 +444,7 @@ void *recv_PACK()
     while (1) {
         bzero(&pack,sizeof(PACK));
         int ret;
-        if((ret = recv(cli_fd, &pack, sizeof(PACK) ,MSG_WAITALL)) > 0) {
+        if((ret = recv(cli_fd, &pack, sizeof(PACK) ,MSG_WAITALL)) < 0) {
             perror("client_recv");
         }
             switch (pack.type) {
@@ -461,7 +461,7 @@ void *recv_PACK()
                         recv_store_chat();
                         break;
                 case LIST_FRI:
-                        recv_list_fri();
+                        recv_list_fri(pack);
                         break;
                 case ONLINE_FRI:
                         recv_online_fri();
@@ -639,20 +639,10 @@ void recv_store_chat()
     }
 }
 
-void recv_list_fri()
+void recv_list_fri(PACK pack)
 {
-    fri p;
-    while(1) {
-        int ret;
-        memset(&p, 0, sizeof(fri));
-        if(recv(cli_fd, &p,sizeof(fri), MSG_WAITALL)>0) {
-            for(int i = 0; i < p.len; i++) {
-                printf("account:%d  ",p.account[i]);
-                printf("昵称:%s\n",p.name[i]);
-            }
-            return ;
-        }
-    }
+    printf("账号：%d\t",pack.account);
+    printf("名字：%s\n",pack.send_name);
 }
 
 void recv_online_fri()
@@ -704,6 +694,7 @@ void recv_group_mes(PACK pack)
     printf("群名称%s\n",pack.mes);
     GROUP p;
     while(1) {
+        printf("%s\n");
         memset(&p, 0, sizeof(GROUP));
         if(recv(cli_fd, &p,sizeof(GROUP), MSG_WAITALL)>0) {
             for(int i = 0; i < p.len; i++) {
@@ -848,7 +839,6 @@ void send_file()
         }
         while ((ret = read(fd,pack.mes, sizeof(pack.mes))) > 0) {
             pack.account = ret;
-            printf("%d\n",pack.account);
             if(send(cli_fd, &pack, sizeof(PACK), 0) < 0) {
                 perror("send_file_buf");
             }
@@ -859,7 +849,6 @@ void send_file()
             pack.type = SEND_FILE;
             pack.send_account = send_account;
             send_sum += ret;
-            printf("send_ret:%d\n",ret);
             
        }
         if(ret < 999) {
@@ -871,20 +860,20 @@ void send_file()
         
     }
 
+
 void recv_file(PACK pack)
 {
+    
     PACK send_pack;
     int fd;
-    if( (fd = open("/home/lt/test/test", O_RDWR|O_CREAT|O_APPEND, S_IRUSR| S_IWUSR)) == -1) {
+    if( (fd = open("test", O_RDWR|O_CREAT|O_APPEND, S_IRUSR| S_IWUSR)) == -1) {
         perror("open");
     }
     int ret;
     if( (ret = write(fd, pack.mes, pack.account)) < 0) {
         perror("write");
     }
-    printf("write ret: %d\n",ret);
     recv_sum += ret;
-    printf("recvnum :%d\n",recv_sum);
     close(fd);
 }
 

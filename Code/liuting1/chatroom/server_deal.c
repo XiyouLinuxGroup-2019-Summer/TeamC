@@ -54,7 +54,7 @@ void recv_PACK(int conn_fd)
     PACK pack;
     cli_fd = conn_fd;
     int ret;
-    if((ret = recv(cli_fd, &pack,sizeof(PACK) ,MSG_WAITALL)) > 0) {
+    if((ret = recv(cli_fd, &pack,sizeof(PACK) ,MSG_WAITALL)) < 0) {
         perror("server_recv");
     }
     if (ret == 0 ) {
@@ -213,13 +213,12 @@ void deal_list_fri(PACK pack)
 {
     PACK send_pack;
     fri p = MYSQL_list_fri(pack.account);
-    if(send(cli_fd, &pack, sizeof(PACK), 0)<0) {
-        perror("deal_online_fri");
-    }
-    if((send(cli_fd,&p,sizeof(fri),0))<0) {
-        perror("server_deal ：send");
-    }
 
+    for (int i = 0; p.account[i] != -1 ;i++) {
+        send_pack.account = p.account[i];
+        strcpy(send_pack.send_name, p.name[i]);
+        send_PACK(send_pack);
+    }
 }
 
 void deal_online_fri(PACK pack)

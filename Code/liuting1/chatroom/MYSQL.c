@@ -141,10 +141,7 @@ int MYSQL_exit(int account)
     char buff[1000];
     int flag = 0;
     sprintf(buff,"update user set online = %d  where id = %d",flag,account);
-    if (mysql_query(&mysql, buff)) {
-        perror("login:mysql_query");
-    }
-     
+    mysql_query(&mysql, buff);    
 }
 
 int MYSQL_find_frirela(int id1, int id2)
@@ -246,6 +243,8 @@ fri MYSQL_list_fri(int account)
         }
     }
     p.len = i;
+    printf("%d\n",p.len);
+    p.account[p.len] = -1;
     for(i = 0; i < p.len; i++)
     {
         sprintf(buff,"select * from user where id = %d",p.account[i]);
