@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <arpa/inet.h>
 #include <string.h>
 #include <linux/socket.h>
@@ -22,6 +23,7 @@ struct node{  //请求结构体
 
 int fd;  //用来通信的文件描述符
 char myname[20]; //自己的名字
+int chat_clear = 7;  //用来聊天清屏
 
 struct node *head_friend = NULL;
 struct node *head_group = NULL;
@@ -101,16 +103,20 @@ void *server_message(void *arg);        //线程处理函数
 int choice_group(int conn_fd);          //选择群聊
 int deal_request(int conn_fd);          //处理申请
 int create_group(int conn_fd);          //创建群聊
+int send_file(int conn_fd);             //发送文件
 int exit_face(int conn_fd);             //注销
 int all_friends(int conn_fd);           //查看所有好友
 int online_friends(int conn_fd);        //查看在线好友
 int private_chat(int conn_fd);          //私聊功能
 int add_friend(int conn_fd);            //添加好友
+int delete_friend(int conn_fd);         //删除好友
 int friend_request(int conn_fd);        //好友申请处理
 int group_request(int conn_fd);         //入群申请处理
 int view_group(int conn_fd);            //查看我的群
 int add_group(int conn_fd);             //申请加群
 int public_chat(int conn_fd);           //群聊
+int quit_group(int conn_fd);            //退出群聊
+int recv_file(MSG *message);            //接收文件
 
 int main(int argc, char * argv[])
 {
@@ -257,12 +263,29 @@ void *server_message(void *arg){
             break;
         case 13:
             printf("\033[0m\033[s"); //保存当前光标
-            printf("\033[0m\033[4;1H");  //光标跳到第四行，第一格
+            //printf("\033[0m\033[4;1H");  //光标跳到第四行，第一格
+            //printf("\033[0m\033[%d;1H", chat_clear);
+            //chat_clear += 2;
             printf("%s %s说：\n", message.time, message.from_name);
             printf("%s\n", message.news);
-            printf("\033[0m\033[u");
-            printf("\033[0m\033[u");  //恢复光标
-            fflush(stdout);   //清空I/O缓存中的标准输出缓存使光标恢复到原点
+            //chat_clear++;
+            //pthread_mutex_lock(&mutex);
+            //if(chat_clear == 6){
+            //    for(int i=0; i<6; i++){
+            //        printf("\033[0m\033[K");
+            //    }
+            //    chat_clear = 0;
+            //}
+            //pthread_mutex_unlock(&mutex);
+            //printf("\033[0m\033[u");
+            //printf("\033[0m\033[u");  //恢复光标
+            //fflush(stdout);   //清空I/O缓存中的标准输出缓存使光标恢复到原点
+            break;
+        case 130:
+            printf("%s 还不是你的好友\n", message.to_name);
+            break;
+        case 131:
+            printf("[!!!] %s\n", message.news);
             break;
         //case -13:
           //  printf("你的好友不在线\n");
@@ -276,8 +299,17 @@ void *server_message(void *arg){
             //printf("N\n");
             //bianli_list(head_friend);
             break;
+        case 140:
+            printf("你们已经成为好友\n");
+            break;
+        case 15:
+            printf("删除成功\n");
+            break;
+        case 150:
+            printf("你没有该好友\n");
+            break;
         case 211:
-            printf("你还没有加入群聊，你可以自己创建群聊\n");
+            printf("你还没有加入任何群聊\n");
             break;
         case 21:
             printf("群名: %s\n", message.group.group_name);
@@ -286,26 +318,71 @@ void *server_message(void *arg){
             printf("%s %s说：\n", message.time, message.from_name);
             printf("%s\n", message.news);
             break;
+        case 220:
+            printf("你还没有该群聊\n");
+            break;
         case 23:
-            printf("\n你有一个入群申请，请到消息处理\n");
+            printf("\n你有一个入群申请，请到处理申请\n");
             pthread_mutex_lock(&mutex);
             charu_list(&head_group, message);
             pthread_mutex_unlock(&mutex);
             break;
+        case 24:
+            printf("%s 退出了[%s] \n", message.from_name, message.to_group_name);
+            break;
+        case 240:
+            printf("[%s] 该群不存在\n", message.to_group_name);
+            break;
+        case 241:
+            printf("[%s] 你是该群的群主，不能退出，可选择解散群\n", message.to_group_name);
+            break;
         case 311:
             printf("\n%s 已成为你的好友\n", message.to_name);
             break;
+        case 312:
+            printf("\n%s 拒绝了你的好友申请\n", message.to_name);
+            break;
         case 321:
-            printf("\n%s 你已加入该群\n", message.to_name);
+            printf("\n你已加入该群 [%s]\n", message.to_group_name);
             break;
-        case 51:
-            printf("该群名已存在\n");
+        case 322:
+            printf("\n [%s] 的群主拒绝了你的申请\n", message.to_group_name);
             break;
-        case 52:
-            printf("%s 群创建成功\n", message.group.group_name);
+        case 50:
+            printf("该群已存在\n");
+            break;
+        case 5:
+            printf("[%s] 群创建成功\n", message.group.group_name);
+            break;
+        case 6:
+            printf("%s 给你发送了一个文件\n", message.from_name);
+            recv_file(&message);
+            break;
+        case 60:
+            printf("该用户不存在\n");
             break;
         }
     }
+}
+
+int recv_file(MSG *message){
+    int file_fd;
+    char buf[256];
+    memset(buf, 0, sizeof(buf));
+
+    sprintf(buf, "%s", message->file_name);
+    printf("buf:%s\n", buf);
+    file_fd = open(buf, O_RDWR | O_CREAT, 0644);
+    if(file_fd == -1){
+        my_err("open", __LINE__-2);
+    }
+
+    while(recv(fd, message->news, sizeof(message->news)-1, 0) > 0){
+        write(file_fd, message->news, sizeof(message->news));
+        printf("正在接收...\n");
+    }
+
+    close(file_fd);
 }
 
 int user_face(int conn_fd) {
@@ -315,16 +392,18 @@ int user_face(int conn_fd) {
         printf("-------------------------\n");
         printf("☆       1.我的好友     ☆ \n");
         printf("-------------------------\n");
-        printf("        2.选择群聊     \n");
-        printf("-----------------------\n");
-        printf("        3.处理申请     \n");
-        printf("-----------------------\n");
-        printf("        4.消息盒子     \n");
-        printf("-----------------------\n");
-        printf("        5.创建群聊     \n");
-        printf("-----------------------\n");
-        printf("        0.注销退出     \n");
-        printf("-----------------------\n");
+        printf("        2.选择群聊       \n");
+        printf("-------------------------\n");
+        printf("☆       3.处理申请     ☆ \n");
+        printf("-------------------------\n");
+        printf("        4.聊天记录       \n");
+        printf("-------------------------\n");
+        printf("☆       5.创建群聊     ☆ \n");
+        printf("-------------------------\n");
+        printf("        6.发送文件       \n");
+        printf("-------------------------\n");
+        printf("☆       0.注销退出     ☆ \n");
+        printf("-------------------------\n");
         //printf("    请输入你的选择：");
 
         //scanf("%s", ch);
@@ -333,11 +412,12 @@ int user_face(int conn_fd) {
         while(1){
             printf("   请输入你的选择：");
             scanf("%s", choice);
-
-            //printf("choice: %s\n", choice);
+            while(getchar() != '\n')
+                continue;
 
             if(strcmp(choice, "1")==0||strcmp(choice, "2")==0||strcmp(choice, "3")==0||
-                strcmp(choice, "4")==0||strcmp(choice, "5")==0||strcmp(choice, "0")==0){
+                strcmp(choice, "4")==0||strcmp(choice, "5")==0||strcmp(choice, "6")==0||
+                 strcmp(choice, "0")==0){
                 break;
             }
             else{
@@ -357,6 +437,9 @@ int user_face(int conn_fd) {
             break;
         case '5':
             create_group(conn_fd);
+            break;
+        case '6':
+            send_file(conn_fd);
             break;
         case '0':
             //exit_face(conn_fd);
@@ -509,13 +592,13 @@ int my_friend(int conn_fd){
         printf("-------------------------------\n");
         printf("☆      2.查看在线好友        ☆ \n");
         printf("-------------------------------\n");
-        printf("       3.选择私聊              \n");
+        printf("☆      3.选择私聊            ☆ \n");
         printf("-------------------------------\n");
         printf("☆      4.添加好友            ☆ \n");
         printf("-------------------------------\n");
-        printf("       5.删除好友              \n");
+        printf("☆      5.删除好友            ☆ \n");
         printf("-------------------------------\n");
-        printf("       0.返回上级菜单          \n");
+        printf("☆      0.返回上级菜单        ☆ \n");
         printf("-------------------------------\n");
 
         while(1){
@@ -524,7 +607,8 @@ int my_friend(int conn_fd){
             while(getchar() != '\n')
                 continue;
 
-            if(strcmp(choice, "1")==0||strcmp(choice, "2")==0||strcmp(choice, "3")==0||strcmp(choice, "4")==0||strcmp(choice, "0")==0){
+            if(strcmp(choice, "1")==0||strcmp(choice, "2")==0||strcmp(choice, "3")==0||
+               strcmp(choice, "4")==0||strcmp(choice, "5")==0||strcmp(choice, "0")==0){
                 break;
             }
             else{
@@ -546,6 +630,9 @@ int my_friend(int conn_fd){
             break;
         case '4':
             add_friend(conn_fd);
+            break;
+        case '5':
+            delete_friend(conn_fd);
             break;
         }
     }
@@ -621,8 +708,8 @@ int private_chat(int conn_fd){
         memset(now_time, 0, sizeof(now_time));
         memset(buf, 0, sizeof(buf));
         strcpy(now_time, my_time());
-        printf("\033[0m\033[16;0H");
-        printf("%s %s :\n", now_time, message.from_name);
+        //printf("\033[0m\033[16;0H");
+        //printf("%s %s :\n", now_time, message.from_name);
         scanf("%s", buf);
         while(getchar()!='\n')
             continue;
@@ -635,8 +722,9 @@ int private_chat(int conn_fd){
         strcpy(message.news, buf);
         send(conn_fd, &message, sizeof(message), 0);
     }
+    //chat_clear = 7;
 
-    printf("按任意键返回菜单\n");
+    printf("按回车键返回菜单\n");
     getchar();
 }
 
@@ -652,14 +740,43 @@ int add_friend(int conn_fd){
 
     printf("请输入添加的好友名字：");
     scanf("%s", buf);
+    while(getchar() != '\n')
+        continue;
     strcpy(message.to_name, buf);
     //printf("%s\n", message.to_name);
     
     if(send(conn_fd, &message, sizeof(message), 0) != len){
-        printf("A\n");
         my_err("send", __LINE__-2);
         exit(1);
     }
+
+    printf("按回车键返回菜单\n");
+    getchar();
+}
+
+int delete_friend(int conn_fd){
+    MSG message;
+    char buf[200];
+    int len = sizeof(message);
+    memset(&message, 0, sizeof(message));
+    memset(buf, 0, sizeof(buf));
+
+    message.cmd = 15;
+    strcpy(message.from_name, myname);
+
+    printf("想要删除的好友:");
+    scanf("%s", buf);
+    while(getchar() != '\n')
+        continue;
+    strcpy(message.to_name, buf);
+
+    if(send(conn_fd, &message, sizeof(message), 0) != len){
+        my_err("send", __LINE__-1);
+    }
+    
+    sleep(1);
+    printf("按回车键返回菜单\n");
+    getchar();
 }
 
 int choice_group(int conn_fd){
@@ -668,17 +785,19 @@ int choice_group(int conn_fd){
 
     while(1){
         system("clear");
-        printf("-------------------------\n");
-        printf("       1.查看我的群      \n");
-        printf("-------------------------\n");
-        printf("       2.群聊            \n");
-        printf("-------------------------\n");
-        printf("       3.申请入群        \n");
-        printf("-------------------------\n");
-        printf("       4.退出群聊        \n");
-        printf("-------------------------\n");
-        printf("       0.返回上级菜单    \n");
-        printf("-------------------------\n");
+        printf("----------------------------\n");
+        printf("☆      1.查看我的群聊     ☆ \n");
+        printf("----------------------------\n");
+        printf("☆      2.群聊             ☆ \n");
+        printf("----------------------------\n");
+        printf("☆      3.申请入群         ☆ \n");
+        printf("----------------------------\n");
+        printf("       4.退出群聊           \n");
+        printf("----------------------------\n");
+        printf("       5.管理群             \n");
+        printf("----------------------------\n");
+        printf("       0.返回上级菜单       \n");
+        printf("----------------------------\n");
 
         while(1){
             printf("请输入你的选择：");
@@ -706,6 +825,9 @@ int choice_group(int conn_fd){
             break;
         case '3':
             add_group(conn_fd);
+            break;
+        case '4':
+            quit_group(conn_fd);
             break;
         }
     }
@@ -742,6 +864,8 @@ int public_chat(int conn_fd){
     printf("请输入群聊的名称：");
     scanf("%s", buf);
     strcpy(message.to_group_name, buf);
+
+    system("clear");
 
     printf("--------正在 %s 中聊天--------\n", message.to_group_name);
     printf("     ---- quit 退出 ----\n");
@@ -783,7 +907,26 @@ int add_group(int conn_fd){
 
     printf("请输入你想要加入的群名：");
     scanf("%s", buf);
-    strcpy(message.to_name, buf);
+    strcpy(message.to_group_name, buf);
+
+    if(send(conn_fd, &message, sizeof(message), 0) != len){
+        my_err("send", __LINE__-1);
+    }
+}
+
+int quit_group(int conn_fd){
+    MSG message;
+    int len = sizeof(message);
+    char buf[200];
+    memset(&message, 0, sizeof(message));
+    memset(buf, 0, sizeof(buf));
+
+    message.cmd = 24;
+    strcpy(message.from_name, myname);
+
+    printf("请输入你想退出群名：");
+    scanf("%s", buf);
+    strcpy(message.to_group_name, buf);
 
     if(send(conn_fd, &message, sizeof(message), 0) != len){
         my_err("send", __LINE__-1);
@@ -852,10 +995,10 @@ int friend_request(int conn_fd){
     //显示第一个好友申请
     struct node *current;
     current = head_friend;
-    printf("B\n");
+    //printf("B\n");
     printf("from_name: %s\n", current->request.from_name);
     message = current->request;
-    printf("A\n");
+    //printf("A\n");
     printf("%s 想要加你为好友\n", current->request.from_name);
 
     printf("-------同意输入'y', 不同意输入'n'-------\n");
@@ -864,6 +1007,9 @@ int friend_request(int conn_fd){
     while(1){
         printf("请输入你的选择：");
         scanf("%s", choice);
+        while(getchar() != '\n')
+            continue;
+        
         if(strcmp(choice, "y")==0||strcmp(choice, "n")==0){
             break;
         }
@@ -918,10 +1064,11 @@ int group_request(int conn_fd){
     struct node *current;
     current = head_group;
     //printf("B\n");
-    printf("from_name: %s\n", current->request.from_name);
+    //printf("from_name: %s\n", current->request.from_name);
     message = current->request;
     //printf("A\n");
-    printf("%s 想要申请入群\n", current->request.from_name);
+    //printf("%s 想要申请入群 [%s]\n", current->request.from_name, current->request.to_group_name);
+    printf("%s 申请加入群 [%s]\n", message.from_name, message.to_group_name);
 
     printf("-------同意输入'y', 不同意输入'n'-------\n");
     char choice[2];
@@ -944,7 +1091,7 @@ int group_request(int conn_fd){
             my_err("send", __LINE__-1);
         }
         //printf("%s 和你已经成为好友\n", message.from_name);
-        printf("%s 已加入群聊\n", message.from_name);
+        printf("%s 已加入群聊 [%s]\n", message.from_name, message.to_group_name);
         pthread_mutex_lock(&mutex);
         del_head(head_group);
         pthread_mutex_unlock(&mutex);
@@ -991,4 +1138,77 @@ int create_group(int conn_fd){
     printf("按任意键返回菜单\n");
     getchar();
     //getchar();
+}
+
+int send_file(int conn_fd){
+    MSG message;
+    int file_len;
+    char buf[1024];
+    int len = sizeof(message);
+    memset(&message, 0, sizeof(message));
+    memset(buf, 0, sizeof(buf));
+
+    message.cmd = 6;
+    strcpy(message.from_name, myname);
+
+    printf("请输入文件的绝对路径：");
+    scanf("%s", buf);
+    strcpy(message.file_path, buf);
+
+    printf("请输入文件的接收者：：");
+    scanf("%s", buf);
+    strcpy(message.to_name, buf);
+
+    //打开文件
+    printf("%s\n", message.file_path);
+    int fd = open(message.file_path, O_RDONLY);
+    if(fd == -1){
+        my_err("open", __LINE__-2);
+    }
+    
+    //计算文件大小
+    if(lseek(fd, 0, SEEK_END) == -1){
+        my_err("lseek", __LINE__-1);
+    }    
+    file_len = lseek(fd, 0, SEEK_CUR);
+    if(file_len == -1){
+        my_err("lseek", __LINE__-2);
+    }
+    if(lseek(fd, 0, SEEK_SET) == -1){
+        my_err("lseek", __LINE__-1);
+    }
+    message.file_len = file_len;
+
+    //通知服务器开始收文件
+    if(send(conn_fd, &message, sizeof(message), 0) != len){
+        my_err("send", __LINE__-1);
+    }
+
+    /*int once_len = read(fd, buf, sizeof(buf));
+    //strcpy(message.news, buf);
+    while(once_len > 0){
+        strcpy(message.news, buf);
+        message.once_len = once_len;
+        if(send(conn_fd, &message, sizeof(message), 0) != len){
+            my_err("send", __LINE__-1);
+        }
+        once_len = read(fd, buf, sizeof(buf));
+    }*/
+
+    memset(message.news, 0, sizeof(message.news));
+    while(1){
+        if(read(fd, message.news, sizeof(message.news)-1)){
+            send(conn_fd, message.news, sizeof(message.news)-1, 0);
+            printf("正在发送文件...\n");
+        }
+        else{
+            break;
+        }
+    }
+
+    printf("按回车键返回菜单\n");
+    getchar();
+    getchar();
+    //关闭文件
+    close(fd);
 }
