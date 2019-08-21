@@ -26,7 +26,7 @@ void recv_ADDFR(PACK);
 void recv_CHAT_FRI(PACK);
 void recv_store_chat();
 void recv_list_fri(PACK);
-void recv_online_fri();
+void recv_online_fri(PACK);
 void recv_creat_group(PACK);
 void recv_join_group(PACK);
 void recv_quit_group(PACK);
@@ -39,6 +39,9 @@ void recv_set_up(PACK);
 void recv_file(PACK);
 void recv_dele_user(PACK);
 void recv_join_user(PACK);
+void recv_group_mes_head(PACK);
+void recv_store_group_head(PACK);
+void recv_store_chat_head(PACK);
 
 int getch()
 { 
@@ -288,7 +291,6 @@ void send_store_chat()
     printf("请输入你想要查询的账号信息：");
     scanf("%d",&pack.send_account);
     getchar();
-    getchar();
     if (send(cli_fd, &pack, sizeof(PACK),0)<0) 
     {
         perror("send_store_chat");
@@ -458,13 +460,16 @@ void *recv_PACK()
                         recv_CHAT_FRI(pack);
                         break;
                 case STORE_CHAT:
-                        recv_store_chat();
+                        recv_store_chat(pack);
+                        break;
+                case 81:
+                        recv_store_chat_head(pack);
                         break;
                 case LIST_FRI:
                         recv_list_fri(pack);
                         break;
                 case ONLINE_FRI:
-                        recv_online_fri();
+                        recv_online_fri(pack);
                         break;
                 case CREAT_GROUP:
                         recv_creat_group(pack);
@@ -481,11 +486,17 @@ void *recv_PACK()
                 case GROUP_MES:
                         recv_group_mes(pack);
                         break;
+                case 141:
+                        recv_group_mes_head(pack);
+                        break;
                 case CHAT_GROUP:
                         recv_CHAT_GROUP(pack);
                         break;
                 case STORE_G:
                         recv_store_group(pack);
+                        break;
+                case 161:
+                        recv_store_group_head(pack);
                         break;
                 case SET_UP:
                         recv_set_up(pack);
@@ -624,19 +635,16 @@ void recv_chat_fri()
     fhead = NULL;
 }
 
-void recv_store_chat()
+void recv_store_chat(PACK pack)
 {
-    STR str;
-    while(1) {
-        if(recv(cli_fd, &str, sizeof(STR), MSG_WAITALL)>0) {
-            for(int i = 0; i<str.len; i++) {
-                printf("send_account:%d\t", str.account[i]);
-                printf("recv_account:%d\t", str.send_account[i]);
-                printf("%s\n", str.mes[i]);
-            }
-            return ;
-        }
-    }
+    printf("发送:%d\t",pack.account);
+    printf("接收:%d\t", pack.send_account);
+    printf("信息%s\n", pack.mes);
+}
+
+void recv_store_chat_head(PACK pack)
+{
+    printf("%s\n",pack.mes);
 }
 
 void recv_list_fri(PACK pack)
@@ -645,22 +653,10 @@ void recv_list_fri(PACK pack)
     printf("名字：%s\n",pack.send_name);
 }
 
-void recv_online_fri()
+void recv_online_fri(PACK pack)
 {
-    fri p;
-    while(1) {
-        int ret;
-        memset(&p, 0, sizeof(fri));
-        if(recv(cli_fd, &p,sizeof(fri), MSG_WAITALL)>0) {
-            for(int i = 0; i < p.len; i++) {
-                if(p.account[i] != 0) {
-                    printf("account:%d  ",p.account[i]);
-                    printf("昵称:%s\n",p.name[i]);
-                }
-            }
-            return ;
-        }
-    }
+     printf("账号：%d\t",pack.account);
+    printf("名字：%s\n",pack.send_name);
 }
 
 void recv_creat_group(PACK pack)
@@ -691,36 +687,21 @@ void recv_dele_group(PACK pack)
 
 void recv_group_mes(PACK pack)
 {
-    printf("群名称%s\n",pack.mes);
-    GROUP p;
-    while(1) {
-        printf("%s\n");
-        memset(&p, 0, sizeof(GROUP));
-        if(recv(cli_fd, &p,sizeof(GROUP), MSG_WAITALL)>0) {
-            for(int i = 0; i < p.len; i++) {
-                if(p.account[i] != 0) {
-                    printf("群员account:%d\t",p.account[i]);
-                    printf("群员名称:%s\t",p.name[i]);
-                    if(p.online[i]== 1) {
-                        printf("在线\t");
-                    }
-                    else {
-                        printf("离线\t");
-                    }
-                    if(p.flag[i] == 1) {
-                        printf("群主\n");
-                    }
-                    else if(p.flag[i]== 2) {
-                        printf("管理员\n");
-                    }
-                    else {
-                        printf("群员\n");
-                    }
-                }
-            }
-            return ;
-        }
+    printf("账号：%d\t",pack.account);
+    printf("名字：%s\t",pack.send_name);
+    if(pack.send_account== 1) {
+        printf("在线\t");
     }
+    else {
+        printf("离线\t");
+    }
+    printf("%s\n",pack.mes);
+    return ;
+}
+
+void recv_group_mes_head(PACK pack)
+{
+    printf("%s\n",pack.mes);
 }
 
 typedef struct chat_group {  //好友聊天
@@ -785,25 +766,13 @@ void recv_chat_group()
 
 void recv_store_group(PACK pack)
 {
-    if(strcmp(pack.mes ,"success")!= 0)
-    {
-        printf("%s\n",pack.mes);
-    }
-    else {
-        while(1) {
-            int ret;
-            STR_G p;
-            if(recv(cli_fd, &p,sizeof(STR_G), MSG_WAITALL)>0) {
-                for(int i = 0; i < p.len; i++) {
-                    if(p.usr_account[i] != 0) {
-                        printf("account:%d  ",p.usr_account[i]);
-                        printf("信息:%s\n",p.mes[i]);
-                    }
-                }
-            return ;
-        }
-        }
-    }
+    printf("account:%d  ",pack.account);
+    printf("信息:%s\n",pack.mes);
+
+}
+void recv_store_group_head(PACK pack)
+{
+    printf("%s\n",pack.mes);
 }
 
 void recv_set_up(PACK pack)

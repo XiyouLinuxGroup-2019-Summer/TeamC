@@ -13,6 +13,7 @@ int MYSQL_repass(int ,char *, char *);
 int MYSQL_exit(int);
 int MYSQL_find_frirela(int, int);
 fri MYSQL_find_fd(int);
+int MYSQL_find_fd_user(int);
 int MYSQL_addfriend_store(int, int);
 fri MYSQL_list_fri(int);
 fri MYSQL_online_fri(int);

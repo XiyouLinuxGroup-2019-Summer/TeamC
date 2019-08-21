@@ -195,6 +195,27 @@ fri MYSQL_find_fd(int account)
         mysql_close(&mysql);
         return f;
 }
+int  MYSQL_find_fd_user(int account)
+{
+    MYSQL_init();
+    int ret; 
+    char buff[1000];
+    int f;
+    sprintf(buff,"select * from user where id = %d",account);
+    ret = mysql_query(&mysql, buff);
+    if (!ret) {
+        result = mysql_store_result(&mysql);    //返回查询结果
+        if (!result) {
+            perror("addfriend:mysql_store_result");
+        }
+        if (row=mysql_fetch_row(result)) {
+            f = atoi(row[4]);    
+        }
+    }
+        mysql_free_result(result);
+        mysql_close(&mysql);
+        return f;
+}
 
 int MYSQL_addfriend_store(int account, int send_account)
 {
@@ -243,7 +264,6 @@ fri MYSQL_list_fri(int account)
         }
     }
     p.len = i;
-    printf("%d\n",p.len);
     p.account[p.len] = -1;
     for(i = 0; i < p.len; i++)
     {
@@ -285,17 +305,15 @@ fri MYSQL_online_fri(int account)
         }
     }
     p.len = i;
-    printf("%d\n",p.len);
+    p.account[p.len] = -1;
     for(i = 0; i < p.len; i++)
     {
         sprintf(buff,"select * from user where id = %d and online = 1",p.account[i]);
-        printf("%s\n", buff);
         ret = mysql_query(&mysql, buff);
         if (!ret) {
             result = mysql_store_result(&mysql);    //返回查询结果
             
             if (row=mysql_fetch_row(result)) {
-                printf("%s\n",row[1]);
                 strcpy(p.name[i] , row[1]);
             }
             else {
@@ -344,11 +362,9 @@ STR MYSQL_find_chat(int account, int send_account)
             strcpy(str.mes[i], row[2]);
             i++;
         }
-        str.len = i > 0 ? i : 0;
+        str.len = i;
     }
-    else {
-        str.account[0] = -1;
-    }
+    str.account[i] = -1;
     return str;
 }
 
@@ -537,6 +553,7 @@ char * MYSQL_group_name(int id)
 
 GROUP MYSQL_group_mes(int group_id)
 {
+    MYSQL_init();
     int ret;
     GROUP group;
     char buff[1000];
@@ -560,6 +577,7 @@ GROUP MYSQL_group_mes(int group_id)
         group.account[0] = -1;
     }
     group.len = i;
+    group.account[group.len] = -1;
     return group;
 }
 
@@ -621,11 +639,9 @@ STR_G MYSQL_find_chat_group(int account)
             strcpy(group.mes[i], row[2]);
             i++;
         }
-        group.len = i > 0 ? i : 0;
+        group.len = i;
     }
-    else {
-        group.usr_account[0] = -1;
-    }
+    group.usr_account[i] = -1 ;
     return group;
 }
 

@@ -16,6 +16,14 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+struct {
+    int group_account ;
+    int use_account[100];
+    char use_name[100][100];
+    int use_online[100];
+    int use_fd[100];
+    int len;
+}g[100];
 
 static int cli_fd;
 
@@ -61,6 +69,9 @@ void recv_PACK(int conn_fd)
          int ret   = MYSQL_exit(pack.account);
         printf("客户端%d退出成功\n",pack.account);
         close(cli_fd);
+        for( int i = 0; i < 100 ; i++) {
+            g[i].use_online[pack.account] = 0;
+        }
         return;
     }
     
@@ -172,7 +183,11 @@ void deal_login(PACK pack)
     }
     send_PACK(send_pack);
     pro_off(pack.account, cli_fd);        
+    for(int i =0; i < 100 ;i++) {
+        g[i].use_online[pack.account] = 1;
+        g[i].use_fd[pack.account] = MYSQL_find_fd_user(pack.account);
 
+    }
 }
 
 void deal_regist(PACK pack)
@@ -213,7 +228,7 @@ void deal_list_fri(PACK pack)
 {
     PACK send_pack;
     fri p = MYSQL_list_fri(pack.account);
-
+    send_pack.type = LIST_FRI;
     for (int i = 0; p.account[i] != -1 ;i++) {
         send_pack.account = p.account[i];
         strcpy(send_pack.send_name, p.name[i]);
@@ -223,12 +238,13 @@ void deal_list_fri(PACK pack)
 
 void deal_online_fri(PACK pack)
 {
+    PACK send_pack;
     fri p = MYSQL_online_fri(pack.account);
-    if(send(cli_fd, &pack, sizeof(PACK), 0)<0) {
-        perror("deal_online_fri");
-    }
-    if((send(cli_fd,&p,sizeof(fri),0))<0) {
-        perror("server_deal ：send");
+    send_pack.type = ONLINE_FRI;
+    for (int i = 0; p.account[i] != 0 && p.account[i] != -1 ;i++) {
+        send_pack.account = p.account[i];
+        strcpy(send_pack.send_name, p.name[i]);
+        send_PACK(send_pack);
     }
 
 }
@@ -264,17 +280,19 @@ void deal_store_fri(PACK pack)
     PACK send_pack;
     STR str = MYSQL_find_chat(pack.account, pack.send_account);
     if(str.account[0] == -1)
-    {
-       strcmp(send_pack.mes, "没有聊天记录或者查询失败");
+    {   pack.type = 81;
+        strcmp(pack.mes, "没有聊天记录或者查询失败");
+        send_PACK(pack);
     }
     send_pack.type = STORE_CHAT;
-    if(send(cli_fd, &send_pack, sizeof(PACK), 0)<0) {
-        perror("deal_store_fri");
+    for(int i = 0; str.account[i] != -1; i++)
+    {
+        send_pack.account = str.account[i];
+        send_pack.send_account  = str.send_account[i];
+        strcpy(send_pack.mes , str.mes[i]); 
+        send_PACK(send_pack);
     }
-    int ret;
-    if((ret=send(cli_fd, &str, sizeof(STR),0)) <=0 ) {
-        perror("send_store_fri");
-    }
+    
 }
 void deal_dele_fri(PACK pack)
 {
@@ -371,7 +389,6 @@ void deal_group_mes(PACK pack)
 {
     PACK send_pack;
     GROUP group;
-    send_pack.type = GROUP_MES;
     char *p =  MYSQL_group_name(pack.send_account);
     int tmp;
     tmp = strcmp(p, "fail");
@@ -381,57 +398,105 @@ void deal_group_mes(PACK pack)
         group = MYSQL_find_user(group);
     }
     else {
+        send_pack.type =141;
         strcpy(send_pack.mes, "查询失败或该群不存在");
+        send_PACK(send_pack);
+        return;
     }
     send_PACK(send_pack);
-    int ret;
-    if((ret=send(cli_fd, &group, sizeof(GROUP),0)) <=0 ) {
-        perror("send_store_fri");
+    send_pack.type = GROUP_MES;
+    for(int i = 0; group.account[i] != -1; i++ ) {
+        send_pack.account = group.account[i];
+        strcpy(send_pack.send_name , group.name[i]); 
+        send_pack.send_account = group.online[i];
+        if(group.flag[i] == 1) {
+            strcpy(send_pack.mes,"群主");
+        }
+        else if(group.flag[i]== 2) {
+            strcpy(send_pack.mes,"管理员");
+        }
+        else {
+            strcpy(send_pack.mes,"群员");
+        }
+        send_PACK(send_pack);
     }
     
 }
 
+int group_send_account = 0;
+char group_send_name[100];
+
+
+
 void deal_chat_group(PACK pack) 
 {
-    int ret = MYSQL_find_group_member(pack.account, pack.send_account);
-    if (ret == -1) {
-        strcpy(pack.mes,"该群号不存在或你并不是该群成员");
-        send_PACK(pack);
+    GROUP group;
+    if(g[pack.account].group_account == 0) { 
+        int ret = MYSQL_find_group_member(pack.account, pack.send_account);
+        g[pack.account].group_account = 1;
+        if (ret == -1) {
+            strcpy(pack.mes,"该群号不存在或你并不是该群成员");
+            send_PACK(pack);
+             return;
+        }
+        else {
+            group = MYSQL_group_mes(pack.send_account);  //发送人名称
+            group = MYSQL_find_user(group);
+            for(int i= 0; i < group.len; i++) {
+                g[pack.account].use_account[group.account[i]] = group.account[i];
+                strcpy(g[pack.account].use_name[group.account[i]] , group.name[i]);
+                g[pack.account].use_online[group.account[i]] = group.online[i];
+                g[pack.account].use_fd[group.account[i]] = group.cli_fd[i];
+            }
+            g[pack.account].len = group.len;
+    }
+}
+    if( strcmp(pack.mes,"Bye") ==0)
+    {
+        group.account[pack.account] = 0;
+       
         return;
     }
+    int ret;
     ret = MYSQL_store_group(pack.account, pack.send_account, pack.mes);
     if(ret == -1) {
         printf("聊天信息存入失败");
     }
     PACK send_pack;
-    GROUP group;
     send_pack.type = CHAT_GROUP;
     send_pack.account =  pack.send_account;  //群聊账号
     strcpy(send_pack.mes2, pack.mes);
-    char *p =  MYSQL_group_name(pack.send_account);
+
+    if(group_send_account != pack.send_account) {
+        char *p =  MYSQL_group_name(pack.send_account);
+        strcpy(group_send_name, p); 
+        group_send_account = pack.send_account;
+    }
     int tmp;
-    tmp = strcmp(p, "fail");
+    tmp = strcmp(group_send_name, "fail");
+
     if(tmp) {
-        strcpy(send_pack.send_name, p); //群聊名称
-        group = MYSQL_group_mes(pack.send_account);  //发送人名称
-        group = MYSQL_find_user(group);
-        for(int i= 0; i < group.len; i++) {
+        strcpy(send_pack.send_name, group_send_name); //群聊名称
+
+        for(int i= 0; i < 100; i++) {
             if(group.cli_fd[i] == cli_fd) {
                 strcpy(send_pack.mes, group.name[i]);
             }
         }
-        for(int i= 0; i < group.len; i++) {
-            send_pack.send_account = group.account[i]; 
-            
-            if(group.cli_fd[i] != cli_fd) {
-                if(group.online[i] == 1) {
-                    send_other_PACK(send_pack, group.cli_fd[i]);
-                }
-                else {
-                    deal_group_off(send_pack); 
+        for(int i= 0; i < 100; i++) {
+            send_pack.send_account = g[pack.account].use_account[i]; 
+            if(g[pack.account].use_account[i] != 0) {
+                if(g[pack.account].use_fd[i] != cli_fd) {
+                    if(g[pack.account].use_online[i] == 1) {
+                        send_other_PACK(send_pack, g[pack.account].use_fd[i]);
+                    }
+                    else {
+                        deal_group_off(send_pack); 
                 }
             }
 
+
+            }
         }
     }
     else {
@@ -447,15 +512,15 @@ void deal_find_store_g(PACK pack)
     char *p =  MYSQL_group_name(pack.send_account);
     int tmp;
     tmp = strcmp(p, "fail");
+    pack.type = 161;
     if(tmp) {
-        strcpy(pack.send_name, p); //群聊名称
+        strcpy(pack.mes, p); //群聊名称
     }
     else {
         strcpy(pack.mes, "查询失败或该群不存在");
         send_PACK(pack);
         return;
     }
-
     STR_G group = MYSQL_find_chat_group(pack.send_account);
     if(group.usr_account[0] == -1)
     {
@@ -463,13 +528,14 @@ void deal_find_store_g(PACK pack)
        send_PACK(pack);
        return;
     }
-    strcpy(pack.mes ,"success");
-    send_PACK(pack);
-    int ret;
-    if((ret=send(cli_fd, &group, sizeof(STR_G),0)) <=0 ) {
-        perror("send_store_fri");
+    PACK send_pack;
+    send_pack.type = STORE_G;
+    for(int i = 0;group.usr_account[i] != -1; i++)
+    {
+        send_pack.account = group.usr_account[i];
+        strcpy(send_pack.mes , group.mes[i]); 
+        send_PACK(send_pack);
     }
-    
     return;
 }
 
@@ -692,21 +758,21 @@ fri f;
 void send_file(PACK pack)
 {
     if(file_send_account == 0) {
-        printf("#######\n");
-	    file_send_account = pack.send_account;
+	    printf("#######\n");
+        file_send_account = pack.send_account;
         f = MYSQL_find_fd(pack.send_account);
         send_other_PACK(pack, f.account[0]);
 
     }
     else {
-         if(file_send_account == pack.send_account) {
-	    send_other_PACK(pack, f.account[0]);
-	 }
-	 else {
-         printf("&&&&&&&&&\n");
-	        file_send_account = pack.send_account;
-            f = MYSQL_find_fd(pack.send_account);
-            send_other_PACK(pack, f.account[0]);
+        if(file_send_account == pack.send_account) {
+	        send_other_PACK(pack, f.account[0]);
+	    }
+	    else {
+             printf("&&&&&&&&&\n");
+	         file_send_account = pack.send_account;
+             f = MYSQL_find_fd(pack.send_account);
+             send_other_PACK(pack, f.account[0]);
         }
     }
 }
