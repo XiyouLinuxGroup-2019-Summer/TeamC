@@ -43,6 +43,32 @@ typedef struct msg {
     char type;                          //消息类型
 }MSG;
 
+typedef struct mysql_user{
+    char u_name[20];
+    char u_nickname[20];
+    char u_sex[2];
+    char u_passworld[20];
+    char telephone[30];
+}mysql_user;
+
+typedef struct mysql_user_groups{
+    char name[20];
+    char owner[20];
+}mysql_user_groups;
+
+typedef struct mysql_friend{
+    char f_friendname[20];
+    char f_username[20];
+    int type;
+    int status;
+}mysql_friend;
+
+typedef struct mysql_group_relationship{
+    char group_name[20];
+    char user_name[20];
+    int type;
+}mysql_group_relationship;
+
 /*struct message_box{
     char type;  //消息类型
     char from[20];  //消息来源

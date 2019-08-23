@@ -120,6 +120,7 @@ int recv_file(MSG *message);            //接收文件
 int manage_group(int conn_fd);          //管理群
 int view_group_member(int conn_fd);     //查看群成员
 int break_group(int conn_fd);           //解散群
+int set_manager(int conn_fd);           //设置管理员
 
 int main(int argc, char * argv[])
 {
@@ -128,8 +129,10 @@ int main(int argc, char * argv[])
         printf("eg: ./a.out [port] [ip]\n");
         exit(1);
     }
+
     pthread_mutex_init(&mutex, NULL);
     pthread_cond_init(&cond, NULL);
+    
     int ret;
     pthread_t pthread1;
     int port = atoi(argv[1]); //字符串变量转换成整形变量
@@ -186,39 +189,28 @@ int main(int argc, char * argv[])
             close(fd);
             exit(1);
         }
-
-        if(choice[0] == '3'){  //退出
-            //close(fd);  //断开连接
-            //exit(1);
+        else if(choice[0] == '3'){  //退出
             forget_password(fd);
             getchar();
             continue;
         }
-        
-        if(choice[0] == '1'){  //选择注册
-            ret = reg(fd);
-            if(ret == 1){ //注册成功
-                //break;
-                continue;
-            }
-            else{
-                continue;
-            }
+        else if(choice[0] == '1'){  //选择注册
+            reg(fd);
+            continue;
         }
         else if(choice[0] == '2'){  //选择登录
             ret = login(fd);
-            //printf("ret = %d\n", ret);
             if(ret == 1){  //登陆成功
+                //pthread_cond_signal(&cond);
                 break;
             }
             else{          //登录失败
-                //printf("登录失败\n");
                 continue;
-                //break;
             }
-            //pthread_mutex_unlock(&mutex);
         }
     }
+
+    //sleep(1);
 
     //登陆成功，创建用户线程，接受服务器的消息
     pthread_create(&pthread1, NULL, server_message, NULL);
@@ -234,6 +226,7 @@ void *server_message(void *arg){
     //printf("A\n");
     
     while(1){
+        //printf("a");
         MSG message;
         //char *recv_message;
         //recv_message = (char*)malloc(sizeof(message)); //每次接受信息的为一个结构体大小
@@ -268,7 +261,7 @@ void *server_message(void *arg){
             printf("在线好友: %s\n", message.friend_name);
             break;
         case 13:
-            printf("\033[0m\033[s"); //保存当前光标
+            //printf("\033[0m\033[s"); //保存当前光标
             //printf("\033[0m\033[4;1H");  //光标跳到第四行，第一格
             //printf("\033[0m\033[%d;1H", chat_clear);
             //chat_clear += 2;
@@ -311,6 +304,9 @@ void *server_message(void *arg){
         case 141:
             printf("[%s] 该用户不存在\n", message.to_name);
             break;
+        case 149:
+            printf("不能加自己为好友\n");
+            break;
         case 15:
             printf("删除成功\n");
             break;
@@ -336,6 +332,12 @@ void *server_message(void *arg){
             charu_list(&head_group, message);
             pthread_mutex_unlock(&mutex);
             break;
+        case 230:
+            printf("[%s] 已经加入该群\n", message.to_group_name);
+            break;
+        case 231:
+            printf("[%s] 该群不存在\n", message.to_group_name);
+            break;
         case 24:
             printf("%s 退出了[%s] \n", message.from_name, message.to_group_name);
             break;
@@ -345,8 +347,25 @@ void *server_message(void *arg){
         case 241:
             printf("[%s] 你是该群的群主，不能退出，可选择解散群\n", message.to_group_name);
             break;
+        case 242:
+            printf("[%s] 你未加入过该群\n", message.to_group_name);
+            break;
+        case 243:
+            printf("[%s] 已退出该群\n", message.to_group_name);
+            break;
         case 251:
-            printf("%s\n", message.to_name);
+            //printf("%s\n", message.to_name);
+            switch(message.friend_num){
+            case 1:
+                printf("%s [群主]\n", message.to_name);
+                break;
+            case 2:
+                printf("%s [管理员]\n", message.to_name);
+                break;
+            case 3:
+                printf("%s [群成员]\n", message.to_name);
+                break;
+            }
             break;
         case 2510:
             printf("[%s] 该群不存在\n", message.to_group_name);
@@ -362,6 +381,15 @@ void *server_message(void *arg){
             break;
         case 2521:
             printf("[%s] 你不是该群的群主，不能解散该群\n", message.to_group_name);
+            break;
+        case 253:
+            printf("[%s] 成功将%s设置为管理员\n", message.to_group_name, message.to_name);
+            break;
+        case 2530:
+            printf("[%s] 你不是该群的群主\n", message.to_group_name);
+            break;
+        case 2531:
+            printf("[%s] %s不是该群的群成员\n", message.to_group_name, message.to_name);
             break;
         case 311:
             printf("\n%s 已成为你的好友\n", message.to_name);
@@ -388,6 +416,9 @@ void *server_message(void *arg){
         case 60:
             printf("该用户不存在\n");
             break;
+        case 61:
+            printf("该人不是你的好友\n");
+            break;
         }
     }
 }
@@ -407,15 +438,24 @@ int recv_file(MSG *message){
         my_err("open", __LINE__-2);
     }
     printf("A\n");
-
-    while(recv(fd, message, sizeof(MSG), 0)){
+    char *ptr = (char*)message;
+    int sum = 0;
+    int recv_size;
+    while((recv_size = recv(fd, ptr+sum, sizeof(MSG)-sum, 0)) > 0){
         //printf("B\n");
-        if(message->send_end == 1){
-            printf("接收完成...\n");
-            break;
+        sum += recv_size;
+        if(sum == sizeof(MSG)) {
+            sum = 0;
+            if(ntohs(message->once_len) < 1024){
+                printf("接收完成...\n");
+                break;
+            }
+            printf("正在接收文件......size = %d\n", ntohs(message->once_len));
+            write(file_fd, message->news, ntohs(message->once_len));
         }
-        printf("正在接收文件......size = %d\n", message->once_len);
-        write(file_fd, message->news, message->once_len);
+        else {
+            continue;
+        }
     }
 
     close(file_fd);
@@ -542,7 +582,6 @@ int reg(int conn_fd) {
         getchar();
         return -1;
     }
-
 }
 
 int login(int conn_fd){
@@ -553,30 +592,36 @@ int login(int conn_fd){
     char buf[256];
     printf("用户名：");
     scanf("%s", buf);
+    while(getchar() != '\n')
+        continue;
 
     strcpy(message.user_infor.name, buf);
     strcpy(myname, buf);
 
     printf("密  码：");
     scanf("%s", buf);
-    
+    while(getchar() != '\n')
+        continue;    
     strcpy(message.user_infor.password, buf);
+    
     send(conn_fd, &message, sizeof(message), 0);
     recv(conn_fd, &message, sizeof(message), 0);
 
     //登录成功返回1002
-    printf("---cmd = %d\n", message.cmd);
+    //printf("---cmd = %d\n", message.cmd);
     if(message.cmd == 1002) {
         printf("登陆成功\n");
+        printf("按回车键继续\n");
+        getchar();
         //pthread_cond_signal(&cond);
-        printf("M\n");
-        sleep(1);
+        //printf("M\n");
         return 1;     
     }
     //登录失败返回-2
     else if(message.cmd == -2) {
         printf("登录失败\n");
-        sleep(1);
+        printf("按回车键返回菜单\n");
+        getchar();
         return -1;
     }
 }
@@ -786,7 +831,7 @@ int add_friend(int conn_fd){
         exit(1);
     }
 
-    sleep(1);
+    usleep(200);
 
     printf("按回车键返回菜单\n");
     getchar();
@@ -812,7 +857,7 @@ int delete_friend(int conn_fd){
         my_err("send", __LINE__-1);
     }
     
-    sleep(1);
+    usleep(200);
     printf("按回车键返回菜单\n");
     getchar();
 }
@@ -844,7 +889,7 @@ int choice_group(int conn_fd){
                 continue;
 
             if(strcmp(choice, "1")==0||strcmp(choice, "2")==0||strcmp(choice, "3")==0||
-                strcmp(choice, "4")==0||strcmp(choice, "0")==0){
+                strcmp(choice, "4")==0||strcmp(choice, "0")==0||strcmp(choice, "5")==0){
                 break;
             }
             else{
@@ -948,11 +993,17 @@ int add_group(int conn_fd){
 
     printf("请输入你想要加入的群名：");
     scanf("%s", buf);
+    while(getchar() != '\n')
+        continue;
     strcpy(message.to_group_name, buf);
 
     if(send(conn_fd, &message, sizeof(message), 0) != len){
         my_err("send", __LINE__-1);
     }
+
+    usleep(100);
+    printf("按回车键返回菜单\n");
+    getchar();
 }
 
 int quit_group(int conn_fd){
@@ -967,11 +1018,17 @@ int quit_group(int conn_fd){
 
     printf("请输入你想退出群名：");
     scanf("%s", buf);
+    while(getchar() != '\n')
+        continue;
     strcpy(message.to_group_name, buf);
 
     if(send(conn_fd, &message, sizeof(message), 0) != len){
         my_err("send", __LINE__-1);
     }
+
+    usleep(200);
+    printf("按回车键返回菜单\n");
+    getchar();
 }
 
 int manage_group(int conn_fd){
@@ -985,11 +1042,11 @@ int manage_group(int conn_fd){
         printf("---------------------------\n");
         printf("☆      2.解散群          ☆ \n");
         printf("---------------------------\n");
-        printf("       3.设置管理员        \n");
+        printf("☆      3.设置管理员      ☆ \n");
         printf("---------------------------\n");
         printf("       4.移出群成员        \n");
         printf("---------------------------\n");
-        printf("☆      5.返回上级菜单    ☆ \n");
+        printf("☆      0.返回上级菜单    ☆ \n");
         printf("---------------------------\n");
 
         while(1){
@@ -1015,6 +1072,9 @@ int manage_group(int conn_fd){
             break;
         case '2':
             break_group(conn_fd);
+            break;
+        case '3':
+            set_manager(conn_fd);
             break;
         }
     }
@@ -1068,6 +1128,38 @@ int break_group(int conn_fd){
     }
 
     sleep(1);
+    printf("按回车键返回菜单\n");
+    getchar();
+}
+
+int set_manager(int conn_fd){
+    MSG message;
+    int len = sizeof(message);
+    char buf[200];
+    memset(&message, 0, sizeof(message));
+    memset(buf, 0, sizeof(buf));
+
+    message.cmd = 253;
+
+    strcpy(message.from_name, myname);
+
+    printf("请输入你的群:");
+    scanf("%s", buf);
+    while(getchar() != '\n')
+        continue;
+    strcpy(message.to_group_name, buf);
+
+    printf("请输入你要让谁成为管理员:");
+    scanf("%s", buf);
+    while(getchar() != '\n')
+        continue;
+    strcpy(message.to_name, buf);
+
+    if(send(conn_fd, &message, sizeof(message), 0) != len){
+        my_err("send", __LINE__-1);
+    }
+
+    usleep(200);
     printf("按回车键返回菜单\n");
     getchar();
 }
@@ -1295,17 +1387,23 @@ int send_file(int conn_fd){
 
     printf("请输入文件的绝对路径：");
     scanf("%s", buf);
+    while(getchar() != '\n')
+        continue;
     strcpy(message.file_path, buf);
 
     printf("请输入文件的接收者：：");
     scanf("%s", buf);
+    while(getchar() != '\n')
+        continue;
     strcpy(message.to_name, buf);
 
     //打开文件
     printf("%s\n", message.file_path);
     int fd = open(message.file_path, O_RDONLY);
     if(fd == -1){
-        my_err("open", __LINE__-2);
+        printf("请输入正确的路径名称\n");
+        printf("按回车键返回菜单\n");
+        getchar();
     }
     
     //计算文件大小
@@ -1338,20 +1436,25 @@ int send_file(int conn_fd){
         }
     }*/
     message.send_end = 0;
-    while(size = read(fd, message.news, sizeof(message.news))){
+    while((size = read(fd, message.news, sizeof(message.news))) > 0){
         printf("正在发送文件......size = %d\n", size);
-        message.once_len = size;
+        message.once_len = htons(size);
         send(conn_fd, &message, sizeof(message), 0);
+        memset(&message, 0, sizeof(message));
+        message.send_end = 0;
+        message.cmd = 6;
     }
     printf("发送结束...\n");
-    message.send_end = 1;
-    send(conn_fd, &message, sizeof(message), 0);  //通知服务器发送结束
+    //memset(&message, 0, sizeof(message));
+    //message.cmd = 6;
+    //message.send_end = 1;
+    //send(conn_fd, &message, sizeof(message), 0);  //通知服务器发送结束
     
     //printf("------size:%d\n", size);
 
     printf("按回车键返回菜单\n");
     getchar();
-    getchar();
+    //getchar();
     //关闭文件
     close(fd);
 }
