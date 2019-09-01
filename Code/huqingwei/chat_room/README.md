@@ -119,16 +119,21 @@ gcc client.c -o client -lpthread
 ### 运行截图
 *************************************
 1.main
+
 ![image](https://github.com/XiyouLinuxGroup-2019-Summer/TeamC/blob/master/Code/huqingwei/chat_room/images/run_pactures/2019-09-01%2010-19-56屏幕截图.png) 
 
 2.user_face
+
 ![image](https://github.com/XiyouLinuxGroup-2019-Summer/TeamC/blob/master/Code/huqingwei/chat_room/images/run_pactures/2019-09-01%2010-20-47屏幕截图.png) 
 
 3.friends
+
 ![image](https://github.com/XiyouLinuxGroup-2019-Summer/TeamC/blob/master/Code/huqingwei/chat_room/images/run_pactures/2019-09-01%2010-21-33屏幕截图.png) 
 
 4.groups
+
 ![image](https://github.com/XiyouLinuxGroup-2019-Summer/TeamC/blob/master/Code/huqingwei/chat_room/images/run_pactures/2019-09-01%2010-22-17屏幕截图.png) 
 
 5.requests
+
 ![image](https://github.com/XiyouLinuxGroup-2019-Summer/TeamC/blob/master/Code/huqingwei/chat_room/images/run_pactures/2019-09-01%2010-25-04屏幕截图.png)
