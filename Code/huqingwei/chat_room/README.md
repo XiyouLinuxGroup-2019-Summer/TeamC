@@ -74,41 +74,34 @@ gcc client.c -o client -lpthread
 ### 模块设计
 **********************
 #### Client
-![](/home/huloves/下载/未命名文件.png) 
 ![image](https://github.com/XiyouLinuxGroup-2019-Summer/TeamC/blob/master/Code/huqingwei/chat_room/images/client.png)
 #### server
-![](/home/huloves/下载/server.png) 
 ![image](https://github.com/XiyouLinuxGroup-2019-Summer/TeamC/blob/master/Code/huqingwei/chat_room/images/server.png)
 #### 功能设计说明
 ****************************
 #### client -- main模块
 功能描述：与服务端建立连接，创建接受信息线程
 算法与流程图
-![](/home/huloves/下载/client_main.png)
 ![image](https://github.com/XiyouLinuxGroup-2019-Summer/TeamC/blob/master/Code/huqingwei/chat_room/images/client_main.png)
 *********************************************** 
 #### client -- server_manage模块
 功能描述：client进行收包的模块
 算法与流程图
-![](/home/huloves/下载/client_recv.png) 
 ![image](https://github.com/XiyouLinuxGroup-2019-Summer/TeamC/blob/master/Code/huqingwei/chat_room/images/client_recv.png)
 ***********************************************
 #### client -- user_face模块
 功能描述：为用户显示聊天室的功能
 算法与流程图
-![](/home/huloves/下载/client_user_face.png) 
 ![image](https://github.com/XiyouLinuxGroup-2019-Summer/TeamC/blob/master/Code/huqingwei/chat_room/images/client_user_face.png)
 ***********************************************
 #### Server -- main模块
 功能描述：Server总体控制的main模块
 算法与流程图
-![](/home/huloves/下载/server_main.png) 
 ![image](https://github.com/XiyouLinuxGroup-2019-Summer/TeamC/blob/master/Code/huqingwei/chat_room/images/server_main.png)
 ***********************************************
 #### Server -- epoll事件处理模块
 功能描述：Server进行事件处理的模块
 算法与流程图
-![](/home/huloves/下载/server_chuli.png) 
 ![image](https://github.com/XiyouLinuxGroup-2019-Summer/TeamC/blob/master/Code/huqingwei/chat_room/images/server_chuli.png)
 ***********************************************
 ### 数据库说明
@@ -126,12 +119,12 @@ gcc client.c -o client -lpthread
 ### 运行截图
 *************************************
 1.main
-![](imgs/20190901-102006.png)
+![image](https://github.com/XiyouLinuxGroup-2019-Summer/TeamC/blob/master/Code/huqingwei/chat_room/images/run_pactures/2019-09-01%2010-19-56屏幕截图.png)
 2.user_face
-![](imgs/20190901-102052.png)
-2.friends
-![](imgs/20190901-102136.png)
-3.groups
-![](imgs/20190901-102221.png)
-4.requests
-![](imgs/20190901-102508.png)
+![image](https://github.com/XiyouLinuxGroup-2019-Summer/TeamC/blob/master/Code/huqingwei/chat_room/images/run_pactures/2019-09-01%2010-20-47屏幕截图.png)
+3.friends
+![image](https://github.com/XiyouLinuxGroup-2019-Summer/TeamC/blob/master/Code/huqingwei/chat_room/images/run_pactures/2019-09-01%2010-21-33屏幕截图.png)
+4.groups
+![image](https://github.com/XiyouLinuxGroup-2019-Summer/TeamC/blob/master/Code/huqingwei/chat_room/images/run_pactures/2019-09-01%2010-22-17屏幕截图.png)
+5.requests
+![image](https://github.com/XiyouLinuxGroup-2019-Summer/TeamC/blob/master/Code/huqingwei/chat_room/images/run_pactures/2019-09-01%2010-25-04屏幕截图.png)
